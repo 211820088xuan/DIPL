@@ -1,0 +1,73 @@
+main() {
+    // === 变量定义 ===
+    let a = 10
+    let b: Int64 = 5
+    var c: Int64
+    var s = "hello"
+    let flag = true
+    let u = ()
+
+    // === 二元运算 ===
+    a + b           // 正确 Int64
+    s + " world"    // 正确 String
+    // a + s          // 错误 ADD_TYPE_MISMATCH
+    a - b           // 正确
+    a * b           // 正确
+    s * 3           // 正确 String重复
+    // s * "x"       // 错误 MUL_TYPE_MISMATCH
+    a / b           // 正确
+    // a / 0         // 错误 DIV_BY_ZERO
+    a % b           // 正确
+    // a % 0         // 错误 MOD_BY_ZERO
+    2 ** 3          // 正确
+    // 2 ** -1       // 错误 EXP_NEGATIVE_POWER
+
+    // === 比较运算 ===
+    a < b           // false
+    a <= b          // false
+    a > b           // true
+    a >= b          // true
+    a == b          // false
+    a != b          // true
+    s == "hello"    // true
+    s != "world"    // true
+    flag == true    // true
+    flag != false   // true
+
+    // === 逻辑运算 ===
+    true && false   // false
+    false || true   // true
+    !flag           // false
+    // !a           // 错误 NOT_TYPE_MISMATCH
+
+    // === 条件表达式 ===
+    if (flag) {
+        a + b
+    }
+    if (false) {
+        a + b
+    } else {
+        b - a
+    }
+    // if (a) { }    // 错误 IF_TYPE_MISMATCH
+
+    // === 循环 ===
+    var i = 0
+    while (i < 3) {
+        i = i + 1
+        // continue/ break 示例
+        if (i == 2) { continue }
+        if (i == 3) { break }
+    }
+    // break        // 错误 BREAK_OUTSIDE_LOOP
+    // continue     // 错误 CONTINUE_OUTSIDE_LOOP
+
+    // === 赋值 ===
+    c = a + b
+    c = b
+    // let a = 1    // 错误 DUPLICATED_DEF
+    // a = "x"      // 错误 ASSIGN_TYPE_MISMATCH
+    // d = 1        // 错误 UNDEFINED_VAR
+    var d: Int64
+    // d           // 错误 UNINITIALIZED_VAR
+}

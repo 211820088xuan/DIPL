@@ -5,6 +5,8 @@ import cjcj.parser
 import cjcj.scanner.*
 import std.env.*
 import std.collection.ArrayList
+import std.unittest.*
+import std.unittest.testmacro.*
 
 @Test
 class ParserTests {
@@ -253,7 +255,7 @@ class ParserTests {
     func unaryExpr_test() {
         let test: String = """
             main(){
-                -134
+                -(134)
                 !134
             }"""
 
@@ -278,9 +280,11 @@ class ParserTests {
         let test: String = """
             main(){
                 1231
+                -1231
                 "string"
                 ()
                 1.2
+                -1.2
                 true
                 false
                 r'a'

@@ -347,12 +347,12 @@ public class ClassDeclWithRef <: ClassDecl {
 public class RefExprWithRef <: RefExpr {
     private var ref_: ?Reference
 
-    public init(id: NodeId, identifier: Token) {
-        this(id, identifier, None)
+    public init(id: NodeId, identifier: Token, typeArguments: ArrayList<TypeNode>) {
+        this(id, identifier, typeArguments, None)
     }
 
-    public init(id: NodeId, identifier: Token, ref: ?Reference) {
-        super(id, identifier)
+    public init(id: NodeId, identifier: Token, typeArguments: ArrayList<TypeNode>, ref: ?Reference) {
+        super(id, identifier, typeArguments)
         ref_ = ref
     }
 

@@ -42,7 +42,7 @@ internal open class DeclParser {
             if (let Some(funcDef) <- functionDefinition()) {
                 return funcDef
             }
-        } catch (error: ParseError) {
+        } catch (error: ParseError | ConsumeError) {
             helper.synchronize()
         }
         None
@@ -50,7 +50,7 @@ internal open class DeclParser {
 
     private func unnamedParameterList(): ArrayList<FuncParam> {
         let parameters: ArrayList<FuncParam> = ArrayList()
-        let start: (Token, Int64) = (helper.previous(), helper.current - 1)
+        let start: (Token, Int64) = helper.previousNonNLTokenWithIndex()
         if (helper.check(TK.IDENTIFIER)) {
             do {
                 if (helper.check(TK.IDENTIFIER)) {
@@ -122,20 +122,21 @@ internal open class DeclParser {
             return ArrayList()
         }
         helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
-        let start: (Token, Int64) = (helper.previous(), helper.current - 1)
+        let start: (Token, Int64) = helper.previousNonNLTokenWithIndex()
         helper.skipNL()
         let parameters: ArrayList<FuncParam> = ArrayList()
         try {
             parameters.add(all: unnamedParameterList())
             helper.skipNL()
-            helper.consume(TK.RPAREN, "Expect ')' after function parameters", helper.current)
-            helper.skipNL()
-        } catch (e: ConsumeError) {
-            if (helper.check(TK.LCURL)) {
-                reporter.pop()
-                reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
-            } else {
-                helper.synchronizeBlockParenthesis(start[0], start[1])
+            try {
+                helper.consume(TK.RPAREN, "Expect ')' after function parameters", helper.current)
+                helper.skipNL()
+            } catch (e: ConsumeError) {
+                if (helper.check(TK.LCURL)) {
+                    helper.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+                } else {
+                    helper.synchronizeBlockParenthesis(start[0], start[1])
+                }
             }
         } catch (e: ParseError) {
             helper.synchronizeBlockParenthesis(start[0], start[1])
@@ -195,22 +196,25 @@ internal open class DeclParser {
         try {
             helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         } catch (e: ConsumeError) {
-            helper.synchronizeBlockRightCurl(start[0], start[1])
-            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+            helper.trySynchronizeBlockRightCurlOrError(helper.peek(), start[0], start[1], helper.current)
         }
         Body(NodeIdManager.nextId(), decls)
     }
 
     public func classMemberDeclaration(): ?Decl {
         var decl: ?Decl = None
-        if (let Some(classInit) <- classInit()) {
-            decl = classInit
-        }
-        if (let Some(variableDeclaration) <- variableDeclaration()) {
-            decl = variableDeclaration
-        }
-        if (let Some(functionDefinition) <- functionDefinition()) {
-            decl = functionDefinition
+        try {
+            if (let Some(classInit) <- classInit()) {
+                decl = classInit
+            }
+            if (let Some(variableDeclaration) <- variableDeclaration()) {
+                decl = variableDeclaration
+            }
+            if (let Some(functionDefinition) <- functionDefinition()) {
+                decl = functionDefinition
+            }
+        } catch (e: ParseError | ConsumeError) {
+            helper.synchronize()
         }
         decl
     }
@@ -302,8 +306,7 @@ internal open class DeclParser {
         try {
             helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         } catch (e: ConsumeError) {
-            helper.synchronizeBlockRightCurl(start[0], start[1])
-            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+            helper.trySynchronizeBlockRightCurlOrError(helper.peek(), start[0], start[1], helper.current)
         }
 
         println("Error is found in body : ${reporter.empty}")
@@ -312,11 +315,14 @@ internal open class DeclParser {
     }
 
     private func interfaceMemberDeclaration(): ?Decl {
-        if (let Some(functionDefinition) <- functionDefinition()) {
-            functionDefinition
-        } else {
-            None
+        try {
+            if (let Some(functionDefinition) <- functionDefinition()) {
+                functionDefinition
+            }
+        } catch (e: ParseError | ConsumeError) {
+            helper.synchronize()
         }
+        None
     }
 
     private func superClass(): TypeNode {
@@ -325,35 +331,71 @@ internal open class DeclParser {
 
     private func classType(): TypeNode {
         // In the future we'll have also (identifier NL* DOT  NL*)*
-        RefType(NodeIdManager.nextId(), Token(), className())
+        refType(NodeIdManager.nextId(), Token(), className())
     }
 
+    private func refType(id: NodeId, typeParamName: Token, typeName: Token): RefType {
+        let typeArguments = ArrayList<TypeNode>()
+        if (helper.skipNLCompare(TK.LT)) {
+            do {
+                helper.skipNL()
+                typeArguments.add(nodeType(NodeIdManager.nextId(), None))
+                helper.skipNL()
+            } while (helper.matches(TK.COMMA))
+            helper.consume(TK.GT, "Expect '>' after type arguments.", helper.current)
+        }
+        return RefType(id, typeParamName, typeName, typeArguments)
+    }
+
+    private static let OPTION_TYPE_NAME = Token(TK.IDENTIFIER, "Option", Position())
+
     private func nodeType(id: NodeId, typeParameterName: ?Token): TypeNode {
-        if (helper.matches(TokenKind.LPAREN)) {
+        if (helper.matches(TK.LPAREN)) {
             // Function type, and maybe Tuple type in the future
-            let paramTypes = ArrayList<TypeNode>()
-            if (!helper.matches(TokenKind.RPAREN)) {
+            let typeList = ArrayList<TypeNode>()
+            if (!helper.matches(TK.RPAREN)) {
                 while (true) {
-                    paramTypes.add(nodeType(NodeIdManager.nextId(), None))
-                    if (helper.matches(TokenKind.RPAREN)) {
+                    helper.skipNL()
+                    typeList.add(nodeType(NodeIdManager.nextId(), None))
+                    helper.skipNL()
+                    if (helper.matches(TK.RPAREN)) {
                         break
-                    } else if (!helper.matches(TokenKind.COMMA)) {
+                    } else if (!helper.matches(TK.COMMA)) {
                         helper.error(helper.peek(),
-                            "Expected ',' or ')' in function type, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'",
+                            "Expected new line, ',' or ')' in function type, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'",
                             helper.current)
                     }
                 }
             }
-            helper.consume(TokenKind.ARROW, "Expect '->' in function type", helper.current)
+            if (helper.skipNLCompare(TK.ARROW)) {
+                // Function type
+                helper.skipNL()
+                let returnType = nodeType(NodeIdManager.nextId(), None)
+                FuncType(id, typeParameterName, typeList, returnType)
+            } else if (typeList.size == 1) {
+                // Parenthesized type
+                typeList[0]
+            } else {
+                // Tuple type
+                TupleType(id, typeParameterName, typeList)
+            } // typeList.size != 0 as () is UNIT_LITERAL instead
+        } else if (helper.matches(TK.UNIT_LITERAL)) {
+            // Function type with no parameters
+            helper.skipNL()
+            helper.consume(TK.ARROW, "Expect '->' in function type", helper.current)
+            helper.skipNL()
             let returnType = nodeType(NodeIdManager.nextId(), None)
-            FuncType(id, typeParameterName, paramTypes, returnType)
+            FuncType(id, typeParameterName, ArrayList<TypeNode>(), returnType)
+        } else if (helper.matches(TK.QUEST)) {
+            let valueType = nodeType(NodeIdManager.nextId(), None)
+            RefType(id, typeParameterName.getOrDefault {OPTION_TYPE_NAME}, OPTION_TYPE_NAME, ArrayList([valueType]))
         } else {
             let typeName = helper.advance()
-            let typeParamName = typeParameterName.getOrDefault({=> typeName})
+            let typeParamName = typeParameterName.getOrDefault {typeName}
             try {
                 return PrimitiveType(id, typeParamName, typeName)
             } catch (_: IllegalArgumentException) {
-                return RefType(id, typeParamName, typeName)
+                return refType(id, typeParamName, typeName)
             }
         }
     }
@@ -444,16 +486,18 @@ internal open class DeclParser {
 
         var nodes: ArrayList<Node> = ArrayList()
         helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
-        let start: (Token, Int64) = (helper.peek(), helper.current)
+        let start: (Token, Int64) = (helper.previous(), helper.current - 1)
         try {
             nodes = expressionOrDeclarations()
             helper.endStar()
             helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
-        } catch (e: ParseError) {
-            helper.synchronizeBlockRightCurl(start[0], start[1])
-            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
-        } catch (e: ConsumeError) {
-            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        } catch (e: ParseError | ConsumeError) {
+            // ParserError comes from expressionOrDeclaration(),
+            // and ConsumeError comes from helper.consume(...),
+            // both indicating something invalid appears in the block,
+            // which means the block is either missing a '}',
+            // or containing TLDs.
+            helper.trySynchronizeBlockRightCurlOrError(helper.peek(), start[0], start[1], helper.current)
         }
         Block(NodeIdManager.nextId(), nodes)
     }
@@ -482,23 +526,18 @@ internal open class DeclParser {
     }
 
     private func expressionOrDeclaration(): ?Node {
-        try {
-            if (let Some(decl) <- declaration()) {
-                return decl
-            }
-            if (let Some(expr) <- expression()) {
-                return expr
-            }
-            if (helper.matches(TKH.END) || helper.check(TK.RCURL)) {
-                return None
-            }
-            throw helper.error(helper.peek(),
-                "Expected expression or declaration inside block, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'",
-                helper.current)
-        } catch (e: ParseError) {
-            helper.synchronize()
+        if (let Some(decl) <- declaration()) {
+            return decl
         }
-        None
+        if (let Some(expr) <- expression()) {
+            return expr
+        }
+        if (helper.matches(TKH.END) || helper.check(TK.RCURL)) {
+            return None
+        }
+        throw helper.error(helper.peek(),
+            "Expected expression or declaration inside block, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'",
+            helper.current)
     }
 
     private func whileExpr(): ?Expr {
@@ -627,7 +666,7 @@ internal open class DeclParser {
     }
 
     private func leftAuxExpression(): ?Expr {
-        if (let Some(identifier) <- identifier()) {
+        if (let Some(identifier) <- identifierWithTypeArguments()) {
             return identifier
         }
         if (let Some(thisSuperExpression) <- thisSuperExpression()) {
@@ -658,6 +697,25 @@ internal open class DeclParser {
         )
     }
 
+    private func indexAccess(baseExpr: Expr): ?Expr {
+        helper.tryParse {
+            helper.skipNL()
+            if (!helper.matches(TK.LSQUARE)) {
+                return None
+            }
+            helper.skipNL()
+            // TODO: support other expressions (with normal calls)
+            if (!helper.matches(TK.INTEGER_LITERAL)) {
+                return None
+            }
+            let lit = LitConstExpr(NodeIdManager.nextId(), helper.previous())
+            if (!helper.matches(TK.RSQUARE)) {
+                return None
+            }
+            IndexAccess(NodeIdManager.nextId(), baseExpr, lit)
+        }
+    }
+
     private func callSuffix(callee: Expr): ?Expr {
         let arguments: ArrayList<Argument> = ArrayList()
         if (helper.matches(TK.LPAREN)) {
@@ -679,11 +737,13 @@ internal open class DeclParser {
                         helper.skipNL()
                     } while (helper.matches(TK.COMMA))
                 }
-                helper.consume(TK.RPAREN, "Expect ')' after arguments.", helper.current)
+                try {
+                    helper.consume(TK.RPAREN, "Expect ')' after arguments.", helper.current)
+                } catch (e: ConsumeError) {
+                    helper.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+                }
             } catch (e: ParseError) {
                 helper.synchronizeCallParenthesis(start[0], start[1])
-            } catch (e: ConsumeError) {
-                reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
             return None
@@ -711,7 +771,7 @@ internal open class DeclParser {
                      * eventually parse.
                      */
                     try {
-                        if (let Some(value) <- leftValueExpression() && helper.matches(TKH.ASSIGNMENT_OPERATOR) && let Some(right) <- logicConjunctionExpression()) {
+                        if (let Some(value) <- leftValueExpression() && helper.matches(TKH.ASSIGNMENT_OPERATOR) && let Some(right) <- logicDisjunctionExpression()) {
                             return AssignExpr(NodeIdManager.nextId(), value, right)
                         }
                     } catch (e: Exception) {
@@ -730,7 +790,29 @@ internal open class DeclParser {
 
     private func identifier(): ?Expr {
         if (helper.matches(TK.IDENTIFIER)) {
-            return RefExpr(NodeIdManager.nextId(), helper.previous())
+            return RefExpr(NodeIdManager.nextId(), helper.previous(), ArrayList())
+        }
+        None
+    }
+
+    private func identifierWithTypeArguments(): ?Expr {
+        if (helper.matches(TK.IDENTIFIER)) {
+            let ident: Token = helper.previous()
+            let typeArguments: ArrayList<TypeNode> = ArrayList()
+            helper.tryParse<?Unit> {
+                if (helper.matches(TK.LT)) {
+                    do {
+                        helper.skipNL()
+                        typeArguments.add(nodeType(NodeIdManager.nextId(), None))
+                        helper.skipNL()
+                    } while (helper.matches(TK.COMMA))
+                    if (!helper.matches(TK.GT)) {
+                        typeArguments.clear()
+                        return None
+                    }
+                }
+            }
+            return RefExpr(NodeIdManager.nextId(), ident, typeArguments)
         }
         None
     }
@@ -813,11 +895,20 @@ internal open class DeclParser {
     private func comparisonOrTypeExpression(): ?Expr {
         if (let Some(e) <- additiveExpression()) {
             var expr: Expr = e
-            while (helper.skipNLCompare(TKH.COMPARISON_OPERATOR)) {
+            while (helper.skipNLCompare(TKH.COMPARISON_OPERATOR) || helper.skipNLCompare(TK.IS, TK.AS)) {
                 let oper: Token = helper.previous()
                 helper.skipNL()
-                let right: Expr = expectExpression(additiveExpression, "Expect additiveExpression after '${oper.value}'")
-                expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+                if (oper.kind == TK.IS) {
+                    let typeNode = nodeType(NodeIdManager.nextId(), None)
+                    expr = IsExpr(NodeIdManager.nextId(), expr, typeNode)
+                } else if (oper.kind == TK.AS) {
+                    let typeNode = nodeType(NodeIdManager.nextId(), None)
+                    expr = AsExpr(NodeIdManager.nextId(), expr, typeNode)
+                } else {
+                    let right: Expr = expectExpression(additiveExpression,
+                        "Expect additiveExpression after '${oper.value}'")
+                    expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+                }
             }
             return expr
         }
@@ -827,7 +918,7 @@ internal open class DeclParser {
     private func additiveExpression(): ?Expr {
         if (let Some(e) <- multiplicativeExpression()) {
             var expr: Expr = e
-            while (helper.skipNLCompare(TKH.ADDITIVE_OPERATOR)) {
+            while (helper.matches(TK.SUB) || helper.skipNLCompare(TK.ADD)) {
                 let oper: Token = helper.previous()
                 helper.skipNL()
                 let right: Expr = expectExpression(multiplicativeExpression,
@@ -875,6 +966,11 @@ internal open class DeclParser {
         // the problem will be solved.
         if (helper.matches(TKH.PREFIX_UNARY_OPERATOR)) {
             let oper: Token = helper.previous()
+            if (oper.kind == TK.SUB && helper.matches(TK.INTEGER_LITERAL, TK.FLOAT_LITERAL)) {
+                let literal: Token = helper.previous()
+                return LitConstExpr(NodeIdManager.nextId(),
+                    Token(literal.kind, "-" + literal.value, oper.pos))
+            }
             let right: Expr = expectExpression(prefixUnaryExpression,
                 "Expected a postfixExpression after ${oper.value}, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
             return UnaryExpr(NodeIdManager.nextId(), oper, right)
@@ -921,6 +1017,10 @@ internal open class DeclParser {
                 expr = fieldAccess
                 continue
             }
+            if (let Some(indexAccess) <- indexAccess(expr)) {
+                expr = indexAccess
+                continue
+            }
             break
         }
         return expr
@@ -939,7 +1039,7 @@ internal open class DeclParser {
         if (let Some(jump) <- jumpExpression()) {
             return jump
         }
-        if (let Some(i) <- identifier()) {
+        if (let Some(i) <- identifierWithTypeArguments()) {
             return i
         }
         if (let Some(thisSuperExpression) <- thisSuperExpression()) {
@@ -949,10 +1049,28 @@ internal open class DeclParser {
             helper.skipNL()
             let expr: Expr = expectExpression(expression, "Expect expression after '('")
             helper.skipNL()
-            helper.consume(TK.RPAREN, "Expected ')' after expression.", helper.current)
-            return ParenExpr(NodeIdManager.nextId(), expr)
+            if (helper.matches(TK.COMMA)) {
+                helper.skipNL()
+                return tupleExpression(expr)
+            } else {
+                helper.consume(TK.RPAREN, "Expected ')' after expression.", helper.current)
+                return ParenExpr(NodeIdManager.nextId(), expr)
+            }
         }
         None
+    }
+
+    private func tupleExpression(firstExpr: Expr): ?Expr {
+        let elements: ArrayList<Expr> = ArrayList()
+        elements.add(firstExpr)
+        do {
+            helper.skipNL()
+            let expr: Expr = expectExpression(expression, "Expect expression in tuple expression.")
+            elements.add(expr)
+            helper.skipNL()
+        } while (helper.matches(TK.COMMA))
+        helper.consume(TK.RPAREN, "Expect ')' after tuple expression.", helper.current)
+        TupleExpr(NodeIdManager.nextId(), elements)
     }
 
     private func thisSuperExpression(): ?Expr {

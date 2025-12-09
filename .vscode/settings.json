@@ -1,0 +1,18 @@
+{
+    "editor.gotoLocation.alternativeDeclarationCommand": "editor.action.revealDefinition",
+    "editor.gotoLocation.alternativeDefinitionCommand": "editor.action.revealDefinition",
+    "editor.gotoLocation.alternativeTypeDefinitionCommand": "editor.action.revealDefinition",
+    "editor.selectionHighlight": false,
+    "files.autoSave": "onFocusChange",
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.quickSuggestions": {
+        "other": "on",
+        "comments": "off",
+        "strings": "on"
+    },
+    "terminal.integrated.env.windows": {
+        "CANGJIE_HOME": "E:\\cangjie",
+        "CANGJIE_PATH": "E:\\cangjie\\runtime\\lib\\windows_x86_64_llvm;E:\\cangjie\\bin;E:\\cangjie\\tools\\bin;E:\\cangjie\\tools\\lib;E:\\cangjie\\debugger\\bin;C:\\Users\\xuan\\.cjpm\\bin",
+        "PATH": "${config:terminal.integrated.env.windows.CANGJIE_PATH};${env:PATH}"
+    }
+}

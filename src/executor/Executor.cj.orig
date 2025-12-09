@@ -52,20 +52,4 @@ public class Executor {
         // lab1SimpleEvaluation(program)
         lab2SimpleEvaluation(program)
     }
-
-    public func typeCheck(program: Program): Int64 {
-        try {
-            // TODO
-            0
-        } catch (e: CjcjRuntimeErrorWithLocation) {
-            eprintln(e)
-            1
-        } catch (e: Exception) {
-            // This is not expected to happen. There should be no exceptions falling into this branch at the time of the last commit.
-            eprintln("\n\n!!! unhandled exception !!!")
-            eprintln(e.toString())
-            e.printStackTrace()
-            1
-        }
-    }
 }

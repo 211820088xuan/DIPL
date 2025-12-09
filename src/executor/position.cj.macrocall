@@ -1,0 +1,230 @@
+/**
+ * Position.cj
+ *
+ * This is a helper file that helps you find where an ast is in the code.
+ */
+
+package cjcj.executor
+
+import std.deriving.*
+import cjcj.visitor.*
+import cjcj.scanner.Token
+
+/* ===== Emitted by MacroCall @Derive in position.cj:13:1 ===== */
+/* 13.1 */public struct Position {
+/* 13.2 */    public let name: String
+/* 13.3 */    public let line: Int32
+/* 13.4 */    public let column: Int32
+/* 13.5 */    
+/* 13.6 */    init(name: String, line: Int32, column: Int32) {
+/* 13.7 */        this.name = name
+/* 13.8 */        this.line = line
+/* 13.9 */        this.column = column
+/* 13.10 */    }
+/* 13.11 */    
+/* 13.12 */    init(name: String, tok: Token) {
+/* 13.13 */        this.name = name
+/* 13.14 */        this.line = tok.pos.line
+/* 13.15 */        this.column = tok.pos.column
+/* 13.16 */    }
+/* 13.17 */}
+/* 13.18 */extend Position <: ToString {
+/* 13.19 */    public func toString(): String {
+/* 13.20 */        let sb = StringBuilder()
+/* 13.21 */        sb.append("Position")
+/* 13.22 */        sb.append("(")
+/* 13.23 */        sb.append("name")
+/* 13.24 */        sb.append(": ")
+/* 13.25 */        sb.append(this.name.toString())
+/* 13.26 */        sb.append(", ")
+/* 13.27 */        sb.append("line")
+/* 13.28 */        sb.append(": ")
+/* 13.29 */        sb.append(this.line.toString())
+/* 13.30 */        sb.append(", ")
+/* 13.31 */        sb.append("column")
+/* 13.32 */        sb.append(": ")
+/* 13.33 */        sb.append(this.column.toString())
+/* 13.34 */        sb.append(")")
+/* 13.35 */        return sb.toString()
+/* 13.36 */    }
+/* 13.37 */}
+/* 13.38 */extend Position {
+/* 13.39 */    private func derivingChecks_(): Unit {
+/* 13.40 */        let _: ToString = name
+/* 13.41 */        let _: ToString = line
+/* 13.42 */        let _: ToString = column
+/* 13.43 */        derivingChecks2_()
+/* 13.44 */    }
+/* 13.45 */    private func derivingChecks2_(): Unit {
+/* 13.46 */        derivingChecks_()
+/* 13.47 */    }
+/* 13.48 */}
+/* 13.49 */
+/* ===== End of the Emit ===== */
+
+public func getPosition(n: Node): Position {
+    let getter = PositionGetter()
+    n.traverse(getter)
+}
+
+class PositionGetter <: Visitor<Position> {
+    public override func visit(n: Program): Position {
+        n.decls.first.map({it => it.traverse(this)}).getOrDefault({=> Position("Block", 0, 0)})
+    }
+
+    public override func visit(n: BinaryExpr): Position {
+        Position("BinaryExpr", n.oper)
+    }
+
+    public override func visit(n: UnaryExpr): Position {
+        Position("UnaryExpr", n.oper)
+    }
+
+    public override func visit(n: ParenExpr): Position {
+        n.parenthesizedExpr.traverse(this)
+    }
+
+    public override func visit(n: LitConstExpr): Position {
+        Position("Literal", n.literal)
+    }
+
+    public override func visit(n: AssignExpr): Position {
+        n.left.traverse(this)
+    }
+
+    public override func visit(n: RefExpr): Position {
+        Position("RefExpr", n.identifier)
+    }
+
+    public override func visit(n: Block): Position {
+        n.nodes.first.map({it => it.traverse(this)}).getOrDefault({=> Position("Block", 0, 0)})
+    }
+
+    public override func visit(n: IfExpr): Position {
+        n.condition.traverse(this)
+    }
+
+    public override func visit(n: WhileExpr): Position {
+        n.condition.traverse(this)
+    }
+
+    public override func visit(n: CallExpr): Position {
+        n.callee.traverse(this)
+    }
+
+    public override func visit(n: ReturnExpr): Position {
+        Position("ReturnExpr", n.keyword)
+    }
+
+    public override func visit(n: JumpExpr): Position {
+        Position("JumpExpr", n.keyword)
+    }
+
+    public override func visit(n: VarDecl): Position {
+        Position("VarDecl", n.identifier)
+    }
+
+    public override func visit(n: FuncParam): Position {
+        Position("FuncParam", n.identifier)
+    }
+
+    public override func visit(n: FuncDecl): Position {
+        Position("FuncDecl", n.identifier)
+    }
+
+    public override func visit(n: MainDecl): Position {
+        Position("MainDecl", n.keyword)
+    }
+
+    public override func visit(n: ClassDecl): Position {
+        Position("ClassDecl", n.identifier)
+    }
+
+    public override func visit(n: Body): Position {
+        n.decls.first.map({it => it.traverse(this)}).getOrDefault({=> Position("Body", 0, 0)})
+    }
+
+    public override func visit(n: Argument): Position {
+        n.expr.traverse(this)
+    }
+
+    public override func visit(n: TypeNode): Position {
+        Position("TypeNode", n.typeName)
+    }
+
+    public override func visit(n: PrimitiveType): Position {
+        Position("PrimitiveType", n.typeName)
+    }
+
+    public override func visit(n: RefType): Position {
+        Position("RefType", n.typeName)
+    }
+
+    public override func visit(n: VariableReference): Position {
+        Position("VariableReference", n.identifier)
+    }
+
+    public override func visit(n: FuncReference): Position {
+        Position("FunctionReference", n.identifier)
+    }
+
+    public override func visit(n: ClassReference): Position {
+        Position("ClassReference", n.identifier)
+    }
+
+    public override func visit(n: VarDeclWithRef): Position {
+        Position("VarDeclWithRef", n.identifier)
+    }
+
+    public override func visit(n: FuncDeclWithRef): Position {
+        Position("FuncDeclWithRef", n.identifier)
+    }
+
+    public override func visit(n: MainDeclWithRef): Position {
+        Position("MainDeclWithRef", n.identifier)
+    }
+
+    public override func visit(n: ClassDeclWithRef): Position {
+        Position("ClassDeclWithRef", n.identifier)
+    }
+
+    public override func visit(n: MemberAccess): Position {
+        Position("MemberAccess", n.field)
+    }
+
+    public override func visit(n: PrimitiveTypeExpr): Position {
+        Position("PrimitiveTypeExpr", n.keyword)
+    }
+
+    public override func visit(n: RefExprWithRef): Position {
+        Position("RefExprWithRef", n.identifier)
+    }
+
+    public override func visit(n: ThisSuperExpr): Position {
+        Position("ThisSuperExpr", n.keyword)
+    }
+
+    public override func visit(n: ThisSuperReference): Position {
+        Position("ThisSuperReference", n.keyword)
+    }
+
+    public override func visit(n: CallExprWithRef): Position {
+        n.callee.traverse(this)
+    }
+
+    public override func visit(n: MemberAccessWithRef): Position {
+        Position("MemberAccessWithRef", n.field)
+    }
+
+    public override func visit(n: InterfaceDecl): Position {
+        Position("InterfaceDecl", n.identifier)
+    }
+
+    public override func visit(n: InterfaceDeclWithRef): Position {
+        Position("InterfaceDeclWithRef", n.identifier)
+    }
+
+    public override func visit(n: InterfaceReference): Position {
+        Position("InterfaceReference", n.identifier)
+    }
+}

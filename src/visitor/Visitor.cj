@@ -53,6 +53,18 @@ public abstract class Visitor<R> {
         throw Exception("Unimplemented method for Visitor : Jump Expression")
     }
 
+    protected open func visit(_: TupleExpr): R {
+        throw Exception("Unimplemented method for Visitor : Tuple Expression")
+    }
+
+    protected open func visit(_: IsExpr): R {
+        throw Exception("Unimplemented method for Visitor : Is Expression")
+    }
+
+    protected open func visit(_: AsExpr): R {
+        throw Exception("Unimplemented method for Visitor : As Expression")
+    }
+
     protected open func visit(_: VarDecl): R {
         throw Exception("Unimplemented method for Visitor : Variable Declaration")
     }
@@ -97,6 +109,10 @@ public abstract class Visitor<R> {
         throw Exception("Unimplemented method for Visitor : Function Type")
     }
 
+    protected open func visit(_: TupleType): R {
+        throw Exception("Unimplemented method for Visitor : Tuple Type")
+    }
+
     protected open func visit(_: VariableReference): R {
         throw Exception("Unimplemented method for Visitor : Variable Reference (ASG)")
     }
@@ -127,6 +143,10 @@ public abstract class Visitor<R> {
 
     protected open func visit(_: MemberAccess): R {
         throw Exception("Unimplemented method for Visitor : Member Access")
+    }
+
+    protected open func visit(_: IndexAccess): R {
+        throw Exception("Unimplemented method for Visitor : Index Access")
     }
 
     protected open func visit(_: PrimitiveTypeExpr): R {
@@ -204,7 +224,8 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         assignExpr.right.traverse(this)
     }
 
-    public open override func visit(_: RefExpr): R {
+    public open override func visit(refExpr: RefExpr): R {
+        refExpr.typeArguments.iterator().forEach({typeArg => typeArg.traverse(this)})
         default
     }
 
@@ -241,6 +262,23 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
 
     public open override func visit(_: JumpExpr): R {
         default
+    }
+
+    public open override func visit(tupleExpr: TupleExpr): R {
+        for (element in tupleExpr.elements) {
+            element.traverse(this)
+        }
+        default
+    }
+
+    public open override func visit(isExpr: IsExpr): R {
+        isExpr.expr.traverse(this)
+        isExpr.typeNode.traverse(this)
+    }
+
+    public open override func visit(asExpr: AsExpr): R {
+        asExpr.expr.traverse(this)
+        asExpr.typeNode.traverse(this)
     }
 
     public open override func visit(varDecl: VarDecl): R {
@@ -305,6 +343,14 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         default
     }
 
+    public open override func visit(_: FuncType): R {
+        default
+    }
+
+    public open override func visit(_: TupleType): R {
+        default
+    }
+
     public open override func visit(_: VariableReference): R {
         default
     }
@@ -362,6 +408,11 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
 
     public open override func visit(memberAccess: MemberAccessWithRef): R {
         memberAccess.baseExpr.traverse(this)
+    }
+
+    public open override func visit(indexAccess: IndexAccess): R {
+        indexAccess.baseExpr.traverse(this)
+        indexAccess.indexExpr.traverse(this)
     }
 
     public open override func visit(_: PrimitiveTypeExpr): R {

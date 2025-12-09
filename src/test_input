@@ -1,73 +1,201 @@
-main() {
-    // === 变量定义 ===
-    let a = 10
-    let b: Int64 = 5
-    var c: Int64
-    var s = "hello"
-    let flag = true
-    let u = ()
+// ---------- 1. println + 基本类型 ----------
 
-    // === 二元运算 ===
-    a + b           // 正确 Int64
-    s + " world"    // 正确 String
-    // a + s          // 错误 ADD_TYPE_MISMATCH
-    a - b           // 正确
-    a * b           // 正确
-    s * 3           // 正确 String重复
-    // s * "x"       // 错误 MUL_TYPE_MISMATCH
-    a / b           // 正确
-    // a / 0         // 错误 DIV_BY_ZERO
-    a % b           // 正确
-    // a % 0         // 错误 MOD_BY_ZERO
-    2 ** 3          // 正确
-    // 2 ** -1       // 错误 EXP_NEGATIVE_POWER
-
-    // === 比较运算 ===
-    a < b           // false
-    a <= b          // false
-    a > b           // true
-    a >= b          // true
-    a == b          // false
-    a != b          // true
-    s == "hello"    // true
-    s != "world"    // true
-    flag == true    // true
-    flag != false   // true
-
-    // === 逻辑运算 ===
-    true && false   // false
-    false || true   // true
-    !flag           // false
-    // !a           // 错误 NOT_TYPE_MISMATCH
-
-    // === 条件表达式 ===
-    if (flag) {
-        a + b
-    }
-    if (false) {
-        a + b
-    } else {
-        b - a
-    }
-    // if (a) { }    // 错误 IF_TYPE_MISMATCH
-
-    // === 循环 ===
-    var i = 0
-    while (i < 3) {
-        i = i + 1
-        // continue/ break 示例
-        if (i == 2) { continue }
-        if (i == 3) { break }
-    }
-    // break        // 错误 BREAK_OUTSIDE_LOOP
-    // continue     // 错误 CONTINUE_OUTSIDE_LOOP
-
-    // === 赋值 ===
-    c = a + b
-    c = b
-    // let a = 1    // 错误 DUPLICATED_DEF
-    // a = "x"      // 错误 ASSIGN_TYPE_MISMATCH
-    // d = 1        // 错误 UNDEFINED_VAR
-    var d: Int64
-    // d           // 错误 UNINITIALIZED_VAR
+func idInt(x: Int64): Int64 {
+    x
 }
+
+func testPrintBasic(): Unit {
+    println(true)
+    println(false)
+    println("hello")
+    println(42)
+    println(())
+    println(idInt(5))
+}
+
+
+// ---------- 2. 递归 Fibonacci 测试 ----------
+
+func fib(n: Int64): Int64 {
+    if (n <= 1) {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+}
+
+func testFib(): Unit {
+    println(fib(4))   // 预期：3
+}
+
+
+// ---------- 3. 全局变量 + while + 函数调用 ----------
+
+var counter: Int64 = 0
+
+func sumTo(n: Int64): Int64 {
+    var x: Int64 = 0
+    var ans: Int64 = 0
+    while (x < n) {
+        ans = ans + x
+        x = x + 1
+    }
+    ans
+}
+
+func increment(): Unit {
+    counter = counter + 1
+}
+
+func testGlobalCounter(): Unit {
+    println(sumTo(4))   // 0 + 1 + 2 + 3 = 6
+    increment()
+    increment()
+    println(counter)    // 预期：2
+}
+
+
+// ---------- 4. 闭包捕获不可变非局部变量（合法） ----------
+
+func testClosureImmutable(): Unit {
+    let base: Int64 = 10
+
+    func adder(x: Int64): Int64 {
+        base + x   // 捕获外层不可变变量 base
+    }
+
+    println(adder(5))   // 预期：15
+}
+
+
+// ---------- 5. 闭包中访问全局可变变量（合法） ----------
+
+var gx_global: Int64 = 0
+
+func testClosureGlobalMutable(): Unit {
+    func inner(): Unit {
+        println(gx_global)   // 这是全局变量，允许访问
+    }
+    inner()
+}
+
+
+// ---------- 6. 全局函数“先用后定义”（允许） ----------
+
+func callG(): Int64 {
+    g(3)   // g 定义在后面，但应该允许
+}
+
+func g(x: Int64): Int64 {
+    x * 2
+}
+
+func testGlobalFuncForward(): Unit {
+    println(callG())     // 预期：6
+}
+
+
+// ---------- 主测试入口：依次跑所有“成功测试” ----------
+
+main() {
+    println("=== testPrintBasic ===")
+    testPrintBasic()
+
+    println("=== testFib ===")
+    testFib()
+
+    println("=== testGlobalCounter ===")
+    testGlobalCounter()
+
+    println("=== testClosureImmutable ===")
+    testClosureImmutable()
+
+    println("=== testClosureGlobalMutable ===")
+    testClosureGlobalMutable()
+
+    println("=== testGlobalFuncForward ===")
+    testGlobalFuncForward()
+}
+
+
+
+// ====================================================
+// 下面是“错误用例”区域：每个块都是一个独立的错误场景
+// 默认全部注释掉，想测哪个就单独解开那一块的注释
+// （注意：一次只建议放开一个，否则第一个错误就终止程序）
+// ====================================================
+
+/*
+// ========== E1. 可变非局部变量：应报 FUNC_USE_MUTABLE_NONLOCAL ==========
+
+func testClosureMutableError(): Unit {
+    var x: Int64 = 0
+
+    func bad(): Int64 {
+        x + 1   // 这里应该触发 FUNC_USE_MUTABLE_NONLOCAL
+    }
+
+    bad()
+}
+*/
+
+/*
+// ========== E2. 全局变量初始化顺序错误：访问之后定义的变量 ==========
+// 预期：在初始化 b_err 时，对 c_err 报 UNDEFINED_VAR
+
+var a_err: Int64 = 1
+var b_err: Int64 = a_err + c_err   // 这里访问了之后定义的 c_err
+var c_err: Int64 = 2
+
+func testGlobalInitOrderError(): Unit {
+    println(a_err + b_err + c_err)
+}
+*/
+
+/*
+// ========== E3. 全局变量缺少初始化：GLOBAL_NO_INITIALIZER ==========
+
+var a_no_init: Int64 = 1
+var b_no_init: Int64        // 顶层缺少 initializer，应报 GLOBAL_NO_INITIALIZER
+
+func testGlobalNoInitializer(): Unit {
+    println(a_no_init)
+}
+*/
+
+/*
+// ========== E4. 函数调用错误：非函数调用 / 参数个数 / 类型不匹配 ==========
+
+func f_call(x: Int64, y: Int64): Int64 {
+    x + y
+}
+
+func testCallErrors(): Unit {
+    let a: Int64 = 1
+
+    // 1) 把非函数当函数调用：CALLEE_NOT_FUNCTION
+    a(1)
+
+    // 2) 参数个数不匹配：CALL_ARG_COUNT_MISMATCH
+    // f_call(1)
+
+    // 3) 参数类型不匹配：CALL_ARG_TYPE_MISMATCH
+    // f_call(true, 2)
+}
+*/
+
+/*
+// ========== E5. 返回类型不匹配：FUNC_RETURN_TYPE_MISMATCH ==========
+
+func g_ret(x: Int64): Int64 {
+    if (x > 0) {
+        true    // 这里返回 Bool，但声明返回 Int64，应报 FUNC_RETURN_TYPE_MISMATCH
+    } else {
+        x
+    }
+}
+
+func testReturnTypeMismatch(): Unit {
+    g_ret(1)
+}
+*/

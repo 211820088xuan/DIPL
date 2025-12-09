@@ -112,9 +112,7 @@ public class Scanner {
             case ',' => addToken(TokenKind.COMMA)
             case '.' => addToken(TokenKind.DOT)
 
-            case ';' =>
-                addToken(TokenKind.SEMI)
-                if (matches(r'\n')) {}
+            case ';' => addToken(TokenKind.SEMI)
 
             case '^' => addToken(TokenKind.BITXOR)
             case '~' => addToken(TokenKind.BITNOT)
@@ -122,7 +120,7 @@ public class Scanner {
             case '#' => addToken(TokenKind.HASH)
             case '?' => addToken(TokenKind.QUEST)
             case '_' =>
-                if (isAlpha(peekNext())) {
+                if (isAlpha(peek())) {
                     identifier()
                 } else {
                     addToken(TokenKind.WILDCARD)
@@ -157,14 +155,8 @@ public class Scanner {
 
             case '/' =>
                 if (matches(r'/')) {
-                    if (windowsiness()) {
-                        while (peek() != r'\r' && peekNext() != r'\n' && !isAtEnd()) {
-                            advance()
-                        }
-                    } else {
-                        while (peek() != r'\n' && !isAtEnd()) {
-                            advance()
-                        }
+                    while (peek() != r'\r' && peek() != r'\n' && !isAtEnd()) {
+                        advance()
                     }
                 } else if (matches(r'*')) {
                     cStyleComment()
@@ -250,32 +242,25 @@ public class Scanner {
                 TokenKind.ASSIGN
             })
 
-            case '\n' =>
-                if (!windowsiness()) {
+            case '\r' | '\n' =>
+                if (c == r'\r') {
+                    matches(r'\n')
+                }
+                line++
+                column = 1
+                skipSpace()
+                while (!isAtEnd() && (peek() == r'\n' || peek() == r'\r')) {
+                    let c = advance()
+                    if (c == r'\r') {
+                        matches(r'\n')
+                    }
                     line++
                     column = 1
                     skipSpace()
-                    while (!isAtEnd() && matches(r'\n')) {
-                        line++
-                        column = 1
-                        skipSpace()
-                    }
                 }
-                addToken(TokenKind.NL, "\\n".toRuneArray())
-                return
-
-            case '\r' =>
-                if (windowsiness() && matches(r'\n')) {
-                    line++
-                    column = 1
-                    skipSpace()
-                    while (!isAtEnd() && matches(r'\r') && matches(r'\n')) {
-                        line++
-                        column = 1
-                        skipSpace()
-                    }
+                if (lastTokenKind() != TokenKind.SEMI) {
+                    addToken(TokenKind.NL, "\\n".toRuneArray())
                 }
-                addToken(TokenKind.NL, "\\n".toRuneArray())
                 return
 
             case ' ' => return
@@ -430,14 +415,12 @@ public class Scanner {
     private func addToken(typ: TokenKind, value: Array<Rune>) {
         tokens.add(Token(typ, String(value), Position(0, line, column)))
     }
-}
 
-@When[os == "Windows"]
-func windowsiness() {
-    return true
-}
-
-@When[os != "Windows"]
-func windowsiness() {
-    return false
+    private func lastTokenKind(): TokenKind {
+        if (tokens.isEmpty()) {
+            TokenKind.ILLEGAL
+        } else {
+            tokens[tokens.size - 1].kind
+        }
+    }
 }

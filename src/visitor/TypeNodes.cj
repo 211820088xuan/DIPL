@@ -35,8 +35,8 @@ public open class TypeNode <: Node {
     }
 
     public open override func yamlPrint(printer: YamlPrinter): Unit {
-        printer.print("typeParameterName", typeParameterName.value)
-        printer.print("typeName", typeName.value)
+        printer.print("typeParameterName", typeParameterName)
+        printer.print("typeName", typeName)
     }
 
     public mut prop typeParameterName: Token {
@@ -75,7 +75,7 @@ public class PrimitiveType <: TypeNode {
         v.visit(this)
     }
 
-    public override func prettyPrint(printer: PrettyPrinter) {
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
         super.prettyPrint(printer)
         printer.append(typeName.value)
     }
@@ -91,30 +91,52 @@ public class PrimitiveType <: TypeNode {
 }
 
 public class RefType <: TypeNode {
-    public init(id: NodeId, typeParameterName: Token, typeName: Token) {
+    private var typeArguments_: ArrayList<TypeNode>
+
+    public init(id: NodeId, typeParameterName: Token, typeName: Token, typeArguments: ArrayList<TypeNode>) {
         super(id, typeParameterName, typeName)
+        typeArguments_ = typeArguments
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public override func prettyPrint(printer: PrettyPrinter) {
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
         super.prettyPrint(printer)
         printer.append(typeName.value)
+        if (typeArguments_.size > 0) {
+            printer.append("<")
+            typeArguments_[0].prettyPrint(printer)
+            for (typeArg in typeArguments_.iterator().skip(1)) {
+                printer.append(", ")
+                typeArg.prettyPrint(printer)
+            }
+            printer.append(">")
+        }
     }
 
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "RefType")
         super.yamlPrint(printer)
+        printer.printList("typeArguments", typeArguments_)
+    }
+
+    public mut prop typeArguments: ArrayList<TypeNode> {
+        get() {
+            typeArguments_
+        }
+        set(v) {
+            typeArguments_ = v
+        }
     }
 }
 
 public class FuncType <: TypeNode {
     static let ARROW_TOKEN = Token(TokenKind.ARROW, "->", Position())
 
-    private let paramTypes_: ArrayList<TypeNode>
-    private let returnType_: TypeNode
+    private var paramTypes_: ArrayList<TypeNode>
+    private var returnType_: TypeNode
 
     public init(id: NodeId, typeParameterName: ?Token, paramTypes: ArrayList<TypeNode>, returnType: TypeNode) {
         super(id, typeParameterName.getOrDefault({=> ARROW_TOKEN}), ARROW_TOKEN)
@@ -122,15 +144,21 @@ public class FuncType <: TypeNode {
         returnType_ = returnType
     }
 
-    public prop paramTypes: ArrayList<TypeNode> {
+    public mut prop paramTypes: ArrayList<TypeNode> {
         get() {
             paramTypes_
         }
+        set(v) {
+            paramTypes_ = v
+        }
     }
 
-    public prop returnType: TypeNode {
+    public mut prop returnType: TypeNode {
         get() {
             returnType_
+        }
+        set(v) {
+            returnType_ = v
         }
     }
 
@@ -138,9 +166,9 @@ public class FuncType <: TypeNode {
         v.visit(this)
     }
 
-    public override func prettyPrint(printer: PrettyPrinter) {
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
         super.prettyPrint(printer)
-        printer.append("fn(")
+        printer.append("(")
         for ((i, paramType) in paramTypes_.iterator().enumerate()) {
             paramType.prettyPrint(printer)
             if (i < paramTypes_.size - 1) {
@@ -157,5 +185,46 @@ public class FuncType <: TypeNode {
         printer.printList("paramTypes", paramTypes_)
         printer.printObject("returnType", returnType_)
     }
+}
 
+public class TupleType <: TypeNode {
+    static let TUPLE_TOKEN = Token(TokenKind.UNIT_LITERAL, "()", Position())
+
+    private var elementTypes_: ArrayList<TypeNode>
+
+    public init(id: NodeId, typeParameterName: ?Token, elementTypes: ArrayList<TypeNode>) {
+        super(id, typeParameterName.getOrDefault({=> TUPLE_TOKEN}), TUPLE_TOKEN)
+        elementTypes_ = elementTypes
+    }
+
+    public mut prop elementTypes: ArrayList<TypeNode> {
+        get() {
+            elementTypes_
+        }
+        set(v) {
+            elementTypes_ = v
+        }
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        super.prettyPrint(printer)
+        printer.append("(")
+        for ((i, elemType) in elementTypes_.iterator().enumerate()) {
+            elemType.prettyPrint(printer)
+            if (i < elementTypes_.size - 1) {
+                printer.append(", ")
+            }
+        }
+        printer.append(")")
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "TupleType")
+        super.yamlPrint(printer)
+        printer.printList("elementTypes", elementTypes_)
+    }
 }

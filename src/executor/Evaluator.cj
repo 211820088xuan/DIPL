@@ -12,30 +12,41 @@ class Lab1TodoException <: Exception {
     }
 }
 
+
+
 //记录变量信息
 public open class VarInfo {
     public let isMutable: Bool
     public let declaredType: ?PrimitiveType
     public var initialized: Bool
     public var value: Value
+    public let isGlobal: Bool                 // ★ 新增：是否是全局绑定
 
-    public init(isMut: Bool, declaredType: ?PrimitiveType, initialized: Bool, value: Value) {
+    public init(isMut: Bool, declaredType: ?PrimitiveType, initialized: Bool, value: Value,isGlobal: Bool) {
         this.isMutable = isMut
         this.declaredType = declaredType
         this.initialized = initialized
         this.value = value
+        this.isGlobal = isGlobal
     }
 }
 
 public class BreakSignal <: Exception {}
 public class ContinueSignal <: Exception {}
 
+public class ReturnSignal <: Exception {
+    public let value: Value
+
+    public init(value: Value) {
+        this.value = value
+    }
+}
 
 
 /** 
  * Evaluator Visitor
  *
- * Lab1 TODO: We have given the simplest form, each `Node` will return a `Value` after evaluation.
+ * We have given the simplest form, each `Node` will return a `Value` after evaluation.
  * But is this sufficient? Do you need to add something new to handle ASTs that don't return a value?
  *
  * You may need to modify the member variables and/or generic parameters of the Evaluator class.
@@ -49,7 +60,7 @@ public open class Evaluator <: Visitor<Value> {
     private var scopes = ArrayList<HashMap<String, VarInfo>>();
 
     ////当前作用域栈
-    private let static_scope : Int64  = 0;
+    private var currentFunction: ?UserFunction = None
 
     //是否在循环中
     private var inLoop = false
@@ -58,6 +69,20 @@ public open class Evaluator <: Visitor<Value> {
     public init() {
         this.scopes = ArrayList<HashMap<String, VarInfo>>() // 全局作用域
         this.scopes.add(HashMap<String, VarInfo>())
+        // 在全局作用域注册内置函数 println
+        let global = this.scopes[0]
+        let builtinPrintln = BuiltinFunction(
+            "println",
+            1,    
+        )
+
+        global["println"] = VarInfo(
+            false,              // 不可变
+            None,        // 先不写类型（题目说参数 Any 就不用检查类型）
+            true,
+            Value.VBuiltinFunction(builtinPrintln),
+            true             // 标记为全局绑定
+        )
     }
 
      private func pushScope() {
@@ -83,8 +108,6 @@ public open class Evaluator <: Visitor<Value> {
             }
             i = i - 1
         }
-
-        // If not found, return an empty map
         return None
     }
 
@@ -119,16 +142,86 @@ public open class Evaluator <: Visitor<Value> {
             case Value.VString(_)  => return "String"
             case Value.VBoolean(_) => return "Bool"
             case Value.VUnit       => return "Unit"
+            case Value.VFunction(_) => return "Function"
+            case Value.VBuiltinFunction(_) => return "Built-in Function"
         }
     }
 
-
-    public open override func visit(_: Program): Value {
-        throw UnsupportedException("Unimplemented method for Visitor : Program")
+    // 供内置 println 使用的打印格式：
+    private func formatForBuiltinPrintln(v: Value): String {
+        match (v) {
+            case Value.VBoolean(b)  => return b.toString()
+            case Value.VInteger(i)  => return i.toString()
+            case Value.VString(s)   => return s   // ★ 不加引号，不转义
+            case Value.VUnit        => return "()"
+            case Value.VFunction(_) =>
+                return "<Function>"
+            case Value.VBuiltinFunction(bf) =>
+                return "<Built-in function ${bf.name}>"
+        }
     }
 
-    // This is just an example of how to implement the visit method for BinaryExpr.
-    // You may need to modify, split, or completely rewrite it depending on your design.
+    private func callBuiltinPrintln(arg: Value): Value {
+        let s = this.formatForBuiltinPrintln(arg)
+        println(s)
+
+        return Value.VUnit
+    }
+
+    private func copyScopesForClosure(): ArrayList<HashMap<String, VarInfo>> {
+            let copied = ArrayList<HashMap<String, VarInfo>>()
+            for (scope in this.scopes.iterator()) {
+                copied.add(scope)
+            }
+            return copied
+    }
+
+
+
+    public open override func visit(prog: Program): Value {
+        // 1. 第一遍：注册所有顶层函数（以及之后可能的全局变量）
+        var mainDeclOpt: ?MainDecl = None
+
+        for (d in prog.decls.iterator()) {
+            match (d) {
+                // 顶层函数定义：调用你已经写好的 visit(FuncDecl)
+                case f: FuncDecl =>
+                    f.traverse(this)
+                case _ =>
+                    ()
+            }
+        }
+
+        for (d in prog.decls.iterator()) {
+            match (d) {
+                // 记录 main，但先不执行
+                case m: MainDecl =>
+                    mainDeclOpt = Some(m)
+
+                case v: VarDecl =>
+                    v.traverse(this)    
+
+                case _ =>
+                    ()    
+            }
+        }
+        
+
+        // 2. 必须有 main
+        if (mainDeclOpt.isNone()) {
+            throw CjcjRuntimeErrorWithLocation(
+                ErrorCode.UNDEFINED_VAR,
+                "no main function defined",
+                prog
+            )
+        }
+
+        let mainDecl = mainDeclOpt.getOrThrow()
+        // 3. 执行 main
+        return mainDecl.traverse(this)
+    }
+
+
 
     //二元表达式
     public open override func visit(expr: BinaryExpr): Value {
@@ -140,12 +233,12 @@ public open class Evaluator <: Visitor<Value> {
                     case (VInteger(a), VInteger(b)) => Value.from(a + b)
                     case (VString(a), VString(b)) => Value.from(a + b)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.ADD_TYPE_MISMATCH,
-                        "cannot add left = ${left}, right = ${right}", expr)
+                        "cannot add left = ${left.toValueString()}, right = ${right.toValueString()}", expr)
                 }
                 case TokenKind.SUB => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) => Value.from(a - b)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.SUB_TYPE_MISMATCH,
-                        "cannot subtract ${left} and ${right}", expr)
+                        "cannot subtract ${left.toValueString()} and ${right.toValueString()}", expr)
                 }
                 case TokenKind.MUL => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) => Value.from(a * b)
@@ -174,7 +267,7 @@ public open class Evaluator <: Visitor<Value> {
                     case _ =>
                         throw CjcjRuntimeErrorWithLocation(
                             ErrorCode.MUL_TYPE_MISMATCH,
-                            "cannot multiply left = ${left}, right = ${right}",
+                            "cannot multiply left = ${left.toValueString()}, right = ${right.toValueString()}",
                             expr
                         )
                 }
@@ -185,7 +278,7 @@ public open class Evaluator <: Visitor<Value> {
                         }
                         Value.from(a / b)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.DIV_TYPE_MISMATCH,
-                        "cannot divide ${left} and ${right}", expr)
+                        "cannot divide ${left.toValueString()} and ${right.toValueString()}", expr)
                 }
                 case TokenKind.MOD => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) =>
@@ -194,7 +287,7 @@ public open class Evaluator <: Visitor<Value> {
                         }
                         Value.from(a % b)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.MOD_TYPE_MISMATCH,
-                        "cannot modulo ${left} and ${right}", expr)
+                        "cannot modulo ${left.toValueString()} and ${right.toValueString()}", expr)
                 }
 
                 //  乘方
@@ -218,32 +311,32 @@ public open class Evaluator <: Visitor<Value> {
                         }
                         return Value.from(result)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.EXP_TYPE_MISMATCH,
-                        "cannot exponentiate ${left} to the power of ${right}", expr)
+                        "cannot exponentiate ${left.toValueString()} to the power of ${right.toValueString()}", expr)
                 }
                 //比较操作
                 case TokenKind.LT => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) => Value.from(a < b)  // 返回 VBoolean 类型
                     case _ => throw CjcjRuntimeErrorWithLocation(
                         ErrorCode.CMP_TYPE_MISMATCH,
-                        "cannot compare left = ${left} with right = ${right}", expr
+                        "cannot compare left = ${left.toValueString()} with right = ${right.toValueString()}", expr
                     )
                 }
                 case TokenKind.GT => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) => Value.from(a > b)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.CMP_TYPE_MISMATCH,
-                        "cannot compare left = ${left} with right = ${right}", expr)
+                        "cannot compare left = ${left.toValueString()} with right = ${right.toValueString()}", expr)
                 }
 
                 case TokenKind.LE => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) => Value.from(a <= b)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.CMP_TYPE_MISMATCH,
-                        "cannot compare left = ${left} with right = ${right}", expr)
+                        "cannot compare left = ${left.toValueString()} with right = ${right.toValueString()}", expr)
                 }
 
                 case TokenKind.GE => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) => Value.from(a >= b)
                     case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.CMP_TYPE_MISMATCH,
-                        "cannot compare left = ${left} with right = ${right}", expr)
+                        "cannot compare left = ${left.toValueString()} with right = ${right.toValueString()}", expr)
                 }
                 case TokenKind.EQUAL => match ((left, right)) {
                     case (VInteger(a), VInteger(b)) => Value.from(a == b)
@@ -251,7 +344,7 @@ public open class Evaluator <: Visitor<Value> {
                     case (VString(a), VString(b))   => Value.from(a == b)
                     case _ => throw CjcjRuntimeErrorWithLocation(
                         ErrorCode.EQ_TYPE_MISMATCH,
-                        "cannot compare left = ${left} with right = ${right}", expr
+                        "cannot compare left = ${left.toValueString()} with right = ${right.toValueString()}", expr
                     )
                 }
                 case TokenKind.NOTEQ => match ((left, right)) {
@@ -260,7 +353,7 @@ public open class Evaluator <: Visitor<Value> {
                     case (VString(a), VString(b))   => Value.from(a != b)
                     case _ => throw CjcjRuntimeErrorWithLocation(
                         ErrorCode.NEQ_TYPE_MISMATCH,
-                        "cannot compare left = ${left} with right = ${right}", expr
+                        "cannot compare left = ${left.toValueString()} with right = ${right.toValueString()}", expr
                     )
                 }
                 // 逻辑与（短路求值）
@@ -279,14 +372,14 @@ public open class Evaluator <: Visitor<Value> {
                                     case VBoolean(b) => Value.from(b)
                                     case _ => throw CjcjRuntimeErrorWithLocation(
                                         ErrorCode.AND_TYPE_MISMATCH,
-                                        "logical and requires Bool operands but got right = ${rightValue}",
+                                        "logical and requires Bool operands but got right = ${rightValue.toValueString()}",
                                         expr
                                     )
                                 }
                             }
                         case _ => throw CjcjRuntimeErrorWithLocation(
                             ErrorCode.AND_TYPE_MISMATCH,
-                            "logical and requires Bool operands but got left = ${leftValue}",
+                            "logical and requires Bool operands but got left = ${leftValue.toValueString()}",
                             expr
                         )
                     }
@@ -305,14 +398,14 @@ public open class Evaluator <: Visitor<Value> {
                                     case VBoolean(b) => Value.from(b)
                                     case _ => throw CjcjRuntimeErrorWithLocation(
                                         ErrorCode.OR_TYPE_MISMATCH,
-                                        "logical or requires Bool operands but got right = ${rightValue}",
+                                        "logical or requires Bool operands but got right = ${rightValue.toValueString()}",
                                         expr
                                     )
                                 }
                             }
                         case _ => throw CjcjRuntimeErrorWithLocation(
                             ErrorCode.OR_TYPE_MISMATCH,
-                            "logical or requires Bool operands but got left = ${leftValue}",
+                            "logical or requires Bool operands but got left = ${leftValue.toValueString()}",
                             expr
                         )
                     }
@@ -322,7 +415,7 @@ public open class Evaluator <: Visitor<Value> {
         } catch (e: OverflowException) {
             match (e.message) {
                 case "add" => throw CjcjRuntimeErrorWithLocation(ErrorCode.ADD_OVERFLOW,
-                    "overflow add: left = ${left}, right = ${right}", expr)
+                    "overflow add: left = ${left.toValueString()}, right = ${right.toValueString()}", expr)
                 case _ => throw Lab1TodoException("You need to handle overflow of ${e.message}")
             }
         }
@@ -340,17 +433,17 @@ public open class Evaluator <: Visitor<Value> {
                         return Value.from(-n)
                     } catch (e: OverflowException) {
                         throw CjcjRuntimeErrorWithLocation(ErrorCode.NEG_OVERFLOW,
-                            "negation overflow: ${v}", expr)
+                            "negation overflow: ${v.toValueString()}", expr)
                     }
                 case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.NEG_TYPE_MISMATCH,
-                    "negation requires Int64 but got ${v}", expr)
+                    "negation requires Int64 but got ${v.toValueString()}", expr)
             }
 
             // 逻辑非
             case TokenKind.NOT => match (v) {
                 case VBoolean(b) => return Value.from(!b)
                 case _ => throw CjcjRuntimeErrorWithLocation(ErrorCode.NOT_TYPE_MISMATCH,
-                    "logical not requires Bool but got ${v}", expr)
+                    "logical not requires Bool but got ${v.toValueString()}", expr)
             }
 
             // 其他暂不支持
@@ -429,7 +522,7 @@ public open class Evaluator <: Visitor<Value> {
                 if (info.isMutable) {
                     info.value = rval
                 } else {
-                    throw CjcjRuntimeErrorWithLocation(ErrorCode.ASSGIN_IMMUT_VAR,
+                    throw CjcjRuntimeErrorWithLocation(ErrorCode.ASSIGN_IMMUT_VAR,
                         "cannot modify immutable variable '${name}'", expr)
                 }
 
@@ -446,16 +539,54 @@ public open class Evaluator <: Visitor<Value> {
     //变量引用表达式
     public open override func visit(ref: RefExpr): Value {
         let name = ref.identifier.value;
-        let scope = this.findScope(name)
-        if (scope.isNone()) {
-            throw CjcjRuntimeErrorWithLocation(ErrorCode.UNDEFINED_VAR,
-                "undefined variable '${name}'", ref)
+
+        // 手动搜索 scope，同时记录 index
+        var idx = this.scopes.size - 1
+        var foundScope: ?HashMap<String, VarInfo> = None
+        var foundIndex: Int64 = -1
+
+        while (idx >= 0) {
+            let scope = this.scopes[idx]
+            if (scope.contains(name)) {
+                foundScope = Some(scope)
+                foundIndex = idx
+                break
+            }
+            idx = idx - 1
         }
-        let optscope = scope.getOrThrow()
-        let info = optscope.get(name).getOrThrow()
+
+        if (foundScope.isNone()) {
+            throw CjcjRuntimeErrorWithLocation(
+                ErrorCode.UNDEFINED_VAR,
+                "undefined variable '${name}'",
+                ref
+            )
+        }
+
+        let scope = foundScope.getOrThrow()
+        let info = scope.get(name).getOrThrow()
+
         if (!info.initialized) {
-            throw CjcjRuntimeErrorWithLocation(ErrorCode.UNINITIALIZED_VAR,
-                "variable '${name}' used before initialization", ref)
+            throw CjcjRuntimeErrorWithLocation(
+                ErrorCode.UNINITIALIZED_VAR,
+                "variable '${name}' used before initialization",
+                ref
+            )
+        }
+
+        if (this.currentFunction.isSome()) {
+            let fn = this.currentFunction.getOrThrow()
+            let capturedCount = fn.capturedScopes.size
+
+            if (foundIndex < capturedCount && !info.isGlobal) {
+                if (info.isMutable) {
+                    throw CjcjRuntimeErrorWithLocation(
+                        ErrorCode.FUNC_USE_MUTABLE_NONLOCAL,
+                        "cannot use mutable nonlocal variable '${name}' inside function '${fn.name}'",
+                        ref
+                    )
+                }
+            }
         }
 
         return info.value
@@ -510,9 +641,7 @@ public open class Evaluator <: Visitor<Value> {
                     expr
                 )
         }
-
         pushScope()
-        // 执行循环体
         try {
             _ = expr.block.traverse(this)
         } catch (e: BreakSignal) {
@@ -527,12 +656,169 @@ public open class Evaluator <: Visitor<Value> {
         return Value.VUnit
     }
 
-    public open override func visit(call: CallExpr): Value {
-        throw UnsupportedException("Unimplemented method for Visitor : Call Expression")
+    // 供 CallExpr 使用的函数调用实现
+    private func callUserFunction(fn: UserFunction, call: CallExpr): Value {
+        // 1. 参数数量检查
+        let expected = fn.params.size
+        let actual = call.arguments.size
+        if (expected != actual) {
+            throw CjcjRuntimeErrorWithLocation(
+                ErrorCode.CALL_ARG_COUNT_MISMATCH,
+                "Function `${fn.name}` expects ${expected} arguments, but got ${actual}",
+                call
+            )
+        }
+
+        let argValues = ArrayList<Value>()
+        var idx: Int64 = 0
+        for (arg in call.arguments.iterator()) {
+            // 如果 Argument 里是 'expr' 字段，就用 arg.expr.traverse(this)
+            // 如果你已经实现了 visit(Argument)，也可以直接 arg.traverse(this)
+            let v = arg.traverse(this)
+            argValues.add(v)
+
+            // 形参类型检查（如果 RuntimeParam 里带了 type）
+            let rp = fn.params[idx]
+            if (rp.decltype.isSome()){
+                let tyNode = rp.decltype.getOrThrow()
+                match (tyNode) {
+                    case t: PrimitiveType =>
+                        let declared = t.typeName.value
+                        let actualName = this.valType(v)
+                        if (declared != actualName) {
+                            throw CjcjRuntimeErrorWithLocation(
+                                ErrorCode.CALL_ARG_TYPE_MISMATCH,
+                                "parameter ${idx} of function `${fn.name}` expects ${declared}, got ${actualName}",
+                                arg              // 具体的实参位置
+                            )
+                        }
+                    case _ =>
+                        ()
+                }
+            }
+
+            idx = idx + 1
+        }
+
+        let oldScopes = this.scopes
+        let oldFunction = this.currentFunction
+        this.scopes = ArrayList<HashMap<String, VarInfo>>()
+        for (scope in fn.capturedScopes.iterator()) {
+            this.scopes.add(scope)
+        }
+        
+        this.currentFunction = Some(fn)
+        
+        this.pushScope()
+        let paramScope = this.currentScope()
+
+        // 4. 把形参名 -> 实参值 绑定到 paramScope 中（不可变 var）
+        idx = 0
+        while (idx < fn.params.size) {
+            let rp = fn.params[idx]
+            let argVal = argValues[idx]
+
+            let paramName = rp.name
+            paramScope[paramName] = VarInfo(
+                false,             // 参数不可变
+                None,       // 简化：不存 PrimitiveType，靠 valType 检查
+                true,
+                argVal,
+                false
+            )
+
+            idx = idx + 1
+        }
+
+        //执行函数体，捕获 ReturnSignal
+        var retVal: Value = Value.VUnit
+        try {
+            retVal = fn.body.traverse(this)
+        } catch (e: ReturnSignal) {
+            retVal = e.value
+        }
+
+        //调用结束，弹出参数作用域，并恢复之前的 scopes和函数上下文
+        this.popScope()
+        this.scopes = oldScopes
+        this.currentFunction = oldFunction
+
+        if (fn.returnType.isSome()) {
+            let retTyNode = fn.returnType.getOrThrow()
+            match (retTyNode) {
+                case t: PrimitiveType =>
+                    let declaredRet = t.typeName.value
+                    let actualRet = this.valType(retVal)
+                    if (declaredRet != actualRet) {
+                        throw CjcjRuntimeErrorWithLocation(
+                            ErrorCode.FUNC_RETURN_TYPE_MISMATCH,
+                            "function `${fn.name}` declared return type ${declaredRet}, but returned ${actualRet}",
+                            call
+                        )
+                    }
+                case _ =>
+                    ()
+            }
+        }
+        return retVal
     }
 
-    public open override func visit(_: ReturnExpr): Value {
-        throw UnsupportedException("Unimplemented method for Visitor : Return Expression")
+    public open override func visit(call: CallExpr): Value {
+        // 1. 求值被调用者
+        let calleeVal = call.callee.traverse(this)
+
+        match (calleeVal) {
+            // ---------- 内置函数 ----------
+            case Value.VBuiltinFunction(bf) =>
+                // 2. 检查参数个数
+                let argCount = call.arguments.size
+                if (bf.paramCount != argCount) {
+                    throw CjcjRuntimeErrorWithLocation(
+                        ErrorCode.CALL_ARG_COUNT_MISMATCH,
+                        "builtin function `${bf.name}` expects ${bf.paramCount} arguments, but got ${argCount}",
+                        call
+                    )
+                }
+                // 3. 逐个计算实参
+                let argValues = ArrayList<Value>()
+                for (arg in call.arguments.iterator()) {
+                    // Argument 的 visit 我们已经实现了，所以直接 traverse 即可
+                    let v = arg.traverse(this)
+                    argValues.add(v)
+                }
+                // 根据内置函数名字分派
+                match (bf.name) {
+                    case "println" =>
+                        // println 只能有一个参数
+                        this.callBuiltinPrintln(argValues[0])
+                        return Value.VUnit
+
+                    case _ =>
+                        // 目前只实现了 println，其他内置函数暂不支持
+                        throw Lab1TodoException("Unknown builtin function `${bf.name}`")
+                }
+
+            case Value.VFunction(f) =>
+                return this.callUserFunction(f, call)
+
+            case _ =>
+                throw CjcjRuntimeErrorWithLocation(
+                    ErrorCode.CALLEE_NOT_FUNCTION,
+                    "callee is not a function: ${calleeVal.toValueString()}",
+                    call
+                )
+        }
+        return Value.VUnit
+    }
+
+    public open override func visit(ret: ReturnExpr): Value {
+        var v = Value.VUnit
+
+        if (ret.expr.isSome()) {
+            v = ret.expr.getOrThrow().traverse(this)
+        }
+
+        throw ReturnSignal(v)
     }
 
     public open override func visit(jmp: JumpExpr): Value {
@@ -620,12 +906,20 @@ public open class Evaluator <: Visitor<Value> {
                         case VString(_)  => declaredType = Some(PrimitiveType(decl.id, Token(TokenKind.STRING_LITERAL, "String", AstPos() ), Token(TokenKind.STRING_LITERAL, "String", AstPos())))
                         case VBoolean(_) => declaredType = Some(PrimitiveType(decl.id, Token(TokenKind.BOOLEAN, "Bool", AstPos()), Token(TokenKind.BOOLEAN, "Bool", AstPos())))
                         case VUnit       => declaredType = Some(PrimitiveType(decl.id, Token(TokenKind.UNIT, "Unit", AstPos()), Token(TokenKind.UNIT, "Unit", AstPos())))
+                        case _ => throw Lab1TodoException("Only primitive types are supported in Lab1")
                     } 
             }
         }
 
         // 存储变量信息
-        current[name] = VarInfo(isMutable, declaredType, initialized, initValue)
+        let isGlobalBinding = (this.scopes.size == 1)   // ★ 当前只有一层 scope 就是全局
+        current[name] = VarInfo(
+            isMutable,
+            declaredType,
+            initialized,
+            initValue,
+            isGlobalBinding
+        )
         return Value.VUnit
     }
 
@@ -634,24 +928,102 @@ public open class Evaluator <: Visitor<Value> {
         throw UnsupportedException("Unimplemented method for Visitor : Function Paramters")
     }
 
-    public open override func visit(_: FuncDecl): Value {
-        throw UnsupportedException("Unimplemented method for Visitor : Function Declaration")
+    public open override func visit(funcDecl: FuncDecl): Value {
+        let name = funcDecl.identifier.value
+
+        // 1. 检查同一作用域重定义（和 VarDecl 一样）
+        let current = this.currentScope()
+        if (current.contains(name)) {
+            throw CjcjRuntimeErrorWithLocation(
+                ErrorCode.DUPLICATED_DEF,
+                "Variable or function '${name}' is already defined in this scope",
+                funcDecl
+            )
+        }
+
+        // 2. 检查是否缺少返回类型
+        if (funcDecl.declType.isNone()) {
+            throw CjcjRuntimeErrorWithLocation(
+                ErrorCode.FUNC_MISSING_RETURN_TYPE,
+                "Function '${name}' must declare a return type",
+                funcDecl
+            )
+        }
+
+        // 3. 检查是否缺少函数体
+        if (funcDecl.block.isNone()) {
+            throw CjcjRuntimeErrorWithLocation(
+                ErrorCode.FUNC_MISSING_BODY,
+                "Function '${name}' must have a body",
+                funcDecl
+            )
+        }
+
+        // 4. 收集参数：FuncParam -> RuntimeParam
+        let runtimeParams = ArrayList<RuntimeParam>()
+        for (p in funcDecl.params.iterator()) {
+            let paramName = p.name.value
+            let paramType: ?TypeNode = p.declType
+            runtimeParams.add(RuntimeParam(paramName, paramType))
+        }
+
+        // 5. 捕获当前作用域栈作为闭包环境
+        let captured = this.copyScopesForClosure()
+
+        // 目前 defOrderInParent 先填 0，后面实现“忽略之后定义的变量”时再真正使用
+        let defOrderInParent: Int64 = 0
+        // 6. 构造 UserFunction
+        let userFn = UserFunction(
+            name,
+            runtimeParams,
+            funcDecl.declType,                  // 返回类型 AST
+            funcDecl.block.getOrThrow(),        // 函数体 Block
+            captured,
+            defOrderInParent
+        )
+
+        //把函数当成一个不可变变量写进当前 scope
+        let isGlobal = (this.scopes.size == 1)
+
+        current[name] = VarInfo(
+            false,                        // func 定义不可变
+            None,
+            true,
+            Value.VFunction(userFn),
+            isGlobal
+        )
+
+        return Value.VUnit
     }
 
-    public open override func visit(_: MainDecl): Value {
-        throw UnsupportedException("Unimplemented method for Visitor : Main Declaration")
+
+    public open override func visit(mainDecl: MainDecl): Value {
+        // main 自己的局部变量作用域
+        this.pushScope()
+        let result = mainDecl.block.traverse(this)
+        this.popScope()
+
+        // main 的求值结果作为整个程序的结果返回
+        return result
     }
+
 
     public open override func visit(_: ClassDecl): Value {
         throw UnsupportedException("Unimplemented method for Visitor : Class Declaration")
     }
 
-    public open override func visit(_: Body): Value {
-        throw UnsupportedException("Unimplemented method for Visitor : Body")
+    public open override func visit(body: Body): Value {
+        var last: Value = Value.VUnit
+
+        for (node in body.decls.iterator()) {
+            last = node.traverse(this)
+        }
+
+        return last
     }
 
     public open override func visit(arg: Argument): Value {
-        throw UnsupportedException("Unimplemented method for Visitor : Argument")
+        return arg.expr.traverse(this)
     }
 
     public open override func visit(_: TypeNode): Value {

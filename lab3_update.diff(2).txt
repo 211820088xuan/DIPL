@@ -1,0 +1,925 @@
+diff --git a/src/executor/Executor.cj b/src/executor/Executor.cj
+index e171bd6..15914e8 100644
+--- a/src/executor/Executor.cj
++++ b/src/executor/Executor.cj
+@@ -34,4 +34,20 @@ public class Executor {
+     public func execute(program: Program): Int64 {
+         lab1SimpleEvaluation(program)
+     }
++
++    public func typeCheck(program: Program): Int64 {
++        try {
++            // TODO
++            0
++        } catch (e: CjcjRuntimeErrorWithLocation) {
++            eprintln(e)
++            1
++        } catch (e: Exception) {
++            // This is not expected to happen. There should be no exceptions falling into this branch at the time of the last commit.
++            eprintln("\n\n!!! unhandled exception !!!")
++            eprintln(e.toString())
++            e.printStackTrace()
++            1
++        }
++    }
+ }
+diff --git a/src/main.cj b/src/main.cj
+index af69399..279ee5d 100644
+--- a/src/main.cj
++++ b/src/main.cj
+@@ -45,6 +45,15 @@ public class Cj {
+             exit(65)
+         }
+     }
++
++    public static func checkCode(source: String): Unit {
++        if (let Some(p) <- parseProgram(source)) {
++            let executor = Executor()
++            exit(executor.typeCheck(p))
++        } else {
++            exit(65)
++        }
++    }
+ }
+ 
+ func printHelp() {
+@@ -63,6 +72,7 @@ main(args: Array<String>) {
+     }
+     match (args[0]) {
+         case "run" => Cj.runCode(getCode(args))
++        case "check" => Cj.checkCode(getCode(args))
+         case "ast" => Cj.printAst(getCode(args))
+         case _ => printHelp()
+     }
+diff --git a/src/parser/DeclParser.cj b/src/parser/DeclParser.cj
+index bcc736b..4a608b7 100644
+--- a/src/parser/DeclParser.cj
++++ b/src/parser/DeclParser.cj
+@@ -331,17 +331,32 @@ internal open class DeclParser {
+ 
+     private func classType(): TypeNode {
+         // In the future we'll have also (identifier NL* DOT  NL*)*
+-        RefType(NodeIdManager.nextId(), Token(), className())
++        refType(NodeIdManager.nextId(), Token(), className())
+     }
+ 
++    private func refType(id: NodeId, typeParamName: Token, typeName: Token): RefType {
++        let typeArguments = ArrayList<TypeNode>()
++        if (helper.skipNLCompare(TK.LT)) {
++            do {
++                helper.skipNL()
++                typeArguments.add(nodeType(NodeIdManager.nextId(), None))
++                helper.skipNL()
++            } while (helper.matches(TK.COMMA))
++            helper.consume(TK.GT, "Expect '>' after type arguments.", helper.current)
++        }
++        return RefType(id, typeParamName, typeName, typeArguments)
++    }
++
++    private static let OPTION_TYPE_NAME = Token(TK.IDENTIFIER, "Option", Position())
++
+     private func nodeType(id: NodeId, typeParameterName: ?Token): TypeNode {
+         if (helper.matches(TK.LPAREN)) {
+             // Function type, and maybe Tuple type in the future
+-            let paramTypes = ArrayList<TypeNode>()
++            let typeList = ArrayList<TypeNode>()
+             if (!helper.matches(TK.RPAREN)) {
+                 while (true) {
+                     helper.skipNL()
+-                    paramTypes.add(nodeType(NodeIdManager.nextId(), None))
++                    typeList.add(nodeType(NodeIdManager.nextId(), None))
+                     helper.skipNL()
+                     if (helper.matches(TK.RPAREN)) {
+                         break
+@@ -352,11 +367,18 @@ internal open class DeclParser {
+                     }
+                 }
+             }
+-            helper.skipNL()
+-            helper.consume(TK.ARROW, "Expect '->' in function type", helper.current)
+-            helper.skipNL()
+-            let returnType = nodeType(NodeIdManager.nextId(), None)
+-            FuncType(id, typeParameterName, paramTypes, returnType)
++            if (helper.skipNLCompare(TK.ARROW)) {
++                // Function type
++                helper.skipNL()
++                let returnType = nodeType(NodeIdManager.nextId(), None)
++                FuncType(id, typeParameterName, typeList, returnType)
++            } else if (typeList.size == 1) {
++                // Parenthesized type
++                typeList[0]
++            } else {
++                // Tuple type
++                TupleType(id, typeParameterName, typeList)
++            } // typeList.size != 0 as () is UNIT_LITERAL instead
+         } else if (helper.matches(TK.UNIT_LITERAL)) {
+             // Function type with no parameters
+             helper.skipNL()
+@@ -364,13 +386,16 @@ internal open class DeclParser {
+             helper.skipNL()
+             let returnType = nodeType(NodeIdManager.nextId(), None)
+             FuncType(id, typeParameterName, ArrayList<TypeNode>(), returnType)
++        } else if (helper.matches(TK.QUEST)) {
++            let valueType = nodeType(NodeIdManager.nextId(), None)
++            RefType(id, typeParameterName.getOrDefault {OPTION_TYPE_NAME}, OPTION_TYPE_NAME, ArrayList([valueType]))
+         } else {
+             let typeName = helper.advance()
+-            let typeParamName = typeParameterName.getOrDefault({=> typeName})
++            let typeParamName = typeParameterName.getOrDefault {typeName}
+             try {
+                 return PrimitiveType(id, typeParamName, typeName)
+             } catch (_: IllegalArgumentException) {
+-                return RefType(id, typeParamName, typeName)
++                return refType(id, typeParamName, typeName)
+             }
+         }
+     }
+@@ -641,7 +666,7 @@ internal open class DeclParser {
+     }
+ 
+     private func leftAuxExpression(): ?Expr {
+-        if (let Some(identifier) <- identifier()) {
++        if (let Some(identifier) <- identifierWithTypeArguments()) {
+             return identifier
+         }
+         if (let Some(thisSuperExpression) <- thisSuperExpression()) {
+@@ -672,6 +697,25 @@ internal open class DeclParser {
+         )
+     }
+ 
++    private func indexAccess(baseExpr: Expr): ?Expr {
++        helper.tryParse {
++            helper.skipNL()
++            if (!helper.matches(TK.LSQUARE)) {
++                return None
++            }
++            helper.skipNL()
++            // TODO: support other expressions (with normal calls)
++            if (!helper.matches(TK.INTEGER_LITERAL)) {
++                return None
++            }
++            let lit = LitConstExpr(NodeIdManager.nextId(), helper.previous())
++            if (!helper.matches(TK.RSQUARE)) {
++                return None
++            }
++            IndexAccess(NodeIdManager.nextId(), baseExpr, lit)
++        }
++    }
++
+     private func callSuffix(callee: Expr): ?Expr {
+         let arguments: ArrayList<Argument> = ArrayList()
+         if (helper.matches(TK.LPAREN)) {
+@@ -727,7 +771,7 @@ internal open class DeclParser {
+                      * eventually parse.
+                      */
+                     try {
+-                        if (let Some(value) <- leftValueExpression() && helper.matches(TKH.ASSIGNMENT_OPERATOR) && let Some(right) <- logicConjunctionExpression()) {
++                        if (let Some(value) <- leftValueExpression() && helper.matches(TKH.ASSIGNMENT_OPERATOR) && let Some(right) <- logicDisjunctionExpression()) {
+                             return AssignExpr(NodeIdManager.nextId(), value, right)
+                         }
+                     } catch (e: Exception) {
+@@ -746,7 +790,29 @@ internal open class DeclParser {
+ 
+     private func identifier(): ?Expr {
+         if (helper.matches(TK.IDENTIFIER)) {
+-            return RefExpr(NodeIdManager.nextId(), helper.previous())
++            return RefExpr(NodeIdManager.nextId(), helper.previous(), ArrayList())
++        }
++        None
++    }
++
++    private func identifierWithTypeArguments(): ?Expr {
++        if (helper.matches(TK.IDENTIFIER)) {
++            let ident: Token = helper.previous()
++            let typeArguments: ArrayList<TypeNode> = ArrayList()
++            helper.tryParse<?Unit> {
++                if (helper.matches(TK.LT)) {
++                    do {
++                        helper.skipNL()
++                        typeArguments.add(nodeType(NodeIdManager.nextId(), None))
++                        helper.skipNL()
++                    } while (helper.matches(TK.COMMA))
++                    if (!helper.matches(TK.GT)) {
++                        typeArguments.clear()
++                        return None
++                    }
++                }
++            }
++            return RefExpr(NodeIdManager.nextId(), ident, typeArguments)
+         }
+         None
+     }
+@@ -829,11 +895,20 @@ internal open class DeclParser {
+     private func comparisonOrTypeExpression(): ?Expr {
+         if (let Some(e) <- additiveExpression()) {
+             var expr: Expr = e
+-            while (helper.skipNLCompare(TKH.COMPARISON_OPERATOR)) {
++            while (helper.skipNLCompare(TKH.COMPARISON_OPERATOR) || helper.skipNLCompare(TK.IS, TK.AS)) {
+                 let oper: Token = helper.previous()
+                 helper.skipNL()
+-                let right: Expr = expectExpression(additiveExpression, "Expect additiveExpression after '${oper.value}'")
+-                expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
++                if (oper.kind == TK.IS) {
++                    let typeNode = nodeType(NodeIdManager.nextId(), None)
++                    expr = IsExpr(NodeIdManager.nextId(), expr, typeNode)
++                } else if (oper.kind == TK.AS) {
++                    let typeNode = nodeType(NodeIdManager.nextId(), None)
++                    expr = AsExpr(NodeIdManager.nextId(), expr, typeNode)
++                } else {
++                    let right: Expr = expectExpression(additiveExpression,
++                        "Expect additiveExpression after '${oper.value}'")
++                    expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
++                }
+             }
+             return expr
+         }
+@@ -942,6 +1017,10 @@ internal open class DeclParser {
+                 expr = fieldAccess
+                 continue
+             }
++            if (let Some(indexAccess) <- indexAccess(expr)) {
++                expr = indexAccess
++                continue
++            }
+             break
+         }
+         return expr
+@@ -960,7 +1039,7 @@ internal open class DeclParser {
+         if (let Some(jump) <- jumpExpression()) {
+             return jump
+         }
+-        if (let Some(i) <- identifier()) {
++        if (let Some(i) <- identifierWithTypeArguments()) {
+             return i
+         }
+         if (let Some(thisSuperExpression) <- thisSuperExpression()) {
+@@ -970,12 +1049,30 @@ internal open class DeclParser {
+             helper.skipNL()
+             let expr: Expr = expectExpression(expression, "Expect expression after '('")
+             helper.skipNL()
+-            helper.consume(TK.RPAREN, "Expected ')' after expression.", helper.current)
+-            return ParenExpr(NodeIdManager.nextId(), expr)
++            if (helper.matches(TK.COMMA)) {
++                helper.skipNL()
++                return tupleExpression(expr)
++            } else {
++                helper.consume(TK.RPAREN, "Expected ')' after expression.", helper.current)
++                return ParenExpr(NodeIdManager.nextId(), expr)
++            }
+         }
+         None
+     }
+ 
++    private func tupleExpression(firstExpr: Expr): ?Expr {
++        let elements: ArrayList<Expr> = ArrayList()
++        elements.add(firstExpr)
++        do {
++            helper.skipNL()
++            let expr: Expr = expectExpression(expression, "Expect expression in tuple expression.")
++            elements.add(expr)
++            helper.skipNL()
++        } while (helper.matches(TK.COMMA))
++        helper.consume(TK.RPAREN, "Expect ')' after tuple expression.", helper.current)
++        TupleExpr(NodeIdManager.nextId(), elements)
++    }
++
+     private func thisSuperExpression(): ?Expr {
+         if (helper.matches(TKH.THIS_SUPER)) {
+             return ThisSuperExpr(NodeIdManager.nextId(), helper.previous())
+diff --git a/src/scanner/Scanner.cj b/src/scanner/Scanner.cj
+index 835398a..26d4bd6 100644
+--- a/src/scanner/Scanner.cj
++++ b/src/scanner/Scanner.cj
+@@ -155,14 +155,8 @@ public class Scanner {
+ 
+             case '/' =>
+                 if (matches(r'/')) {
+-                    if (windowsiness()) {
+-                        while (peek() != r'\r' && peekNext() != r'\n' && !isAtEnd()) {
+-                            advance()
+-                        }
+-                    } else {
+-                        while (peek() != r'\n' && !isAtEnd()) {
+-                            advance()
+-                        }
++                    while (peek() != r'\r' && peek() != r'\n' && !isAtEnd()) {
++                        advance()
+                     }
+                 } else if (matches(r'*')) {
+                     cStyleComment()
+@@ -248,32 +242,21 @@ public class Scanner {
+                 TokenKind.ASSIGN
+             })
+ 
+-            case '\n' =>
+-                if (!windowsiness()) {
+-                    line++
+-                    column = 1
+-                    skipSpace()
+-                    while (!isAtEnd() && matches(r'\n')) {
+-                        line++
+-                        column = 1
+-                        skipSpace()
+-                    }
++            case '\r' | '\n' =>
++                if (c == r'\r') {
++                    matches(r'\n')
+                 }
+-                if (lastTokenKind() != TokenKind.SEMI) {
+-                    addToken(TokenKind.NL, "\\n".toRuneArray())
+-                }
+-                return
+-
+-            case '\r' =>
+-                if (windowsiness() && matches(r'\n')) {
++                line++
++                column = 1
++                skipSpace()
++                while (!isAtEnd() && (peek() == r'\n' || peek() == r'\r')) {
++                    let c = advance()
++                    if (c == r'\r') {
++                        matches(r'\n')
++                    }
+                     line++
+                     column = 1
+                     skipSpace()
+-                    while (!isAtEnd() && matches(r'\r') && matches(r'\n')) {
+-                        line++
+-                        column = 1
+-                        skipSpace()
+-                    }
+                 }
+                 if (lastTokenKind() != TokenKind.SEMI) {
+                     addToken(TokenKind.NL, "\\n".toRuneArray())
+@@ -441,13 +424,3 @@ public class Scanner {
+         }
+     }
+ }
+-
+-@When[os == "Windows"]
+-func windowsiness() {
+-    return true
+-}
+-
+-@When[os != "Windows"]
+-func windowsiness() {
+-    return false
+-}
+diff --git a/src/test/Parser_test.cj b/src/test/Parser_test.cj
+index c142128..e82c4e6 100644
+--- a/src/test/Parser_test.cj
++++ b/src/test/Parser_test.cj
+@@ -255,7 +255,7 @@ class ParserTests {
+     func unaryExpr_test() {
+         let test: String = """
+             main(){
+-                -134
++                -(134)
+                 !134
+             }"""
+ 
+@@ -280,9 +280,11 @@ class ParserTests {
+         let test: String = """
+             main(){
+                 1231
++                -1231
+                 "string"
+                 ()
+                 1.2
++                -1.2
+                 true
+                 false
+                 r'a'
+diff --git a/src/visitor/Exprs.cj b/src/visitor/Exprs.cj
+index 506281b..1d8f059 100644
+--- a/src/visitor/Exprs.cj
++++ b/src/visitor/Exprs.cj
+@@ -264,10 +264,12 @@ public class AssignExpr <: Expr {
+ 
+ public open class RefExpr <: Expr {
+     private var identifier_: Token
++    private var typeArguments_: ArrayList<TypeNode>
+ 
+-    public RefExpr(id: NodeId, identifier: Token) {
++    public RefExpr(id: NodeId, identifier: Token, typeArguments: ArrayList<TypeNode>) {
+         super(id)
+         identifier_ = identifier
++        typeArguments_ = typeArguments
+     }
+ 
+     public open override func traverse<R>(v: Visitor<R>): R {
+@@ -283,13 +285,32 @@ public open class RefExpr <: Expr {
+         }
+     }
+ 
++    public mut prop typeArguments: ArrayList<TypeNode> {
++        get() {
++            typeArguments_
++        }
++        set(v) {
++            typeArguments_ = v
++        }
++    }
++
+     public override func prettyPrint(printer: PrettyPrinter): Unit {
+         printer.append(identifier.value)
++        if (typeArguments_.size > 0) {
++            printer.append("<")
++            typeArguments_[0].prettyPrint(printer)
++            for (typeArg in typeArguments_.iterator().skip(1)) {
++                printer.append(", ")
++                typeArg.prettyPrint(printer)
++            }
++            printer.append(">")
++        }
+     }
+ 
+     public override func yamlPrint(printer: YamlPrinter): Unit {
+         printer.print("type", "RefExpr")
+         printer.print("identifier", identifier)
++        printer.printList("typeArguments", typeArguments)
+     }
+ }
+ 
+@@ -648,6 +669,56 @@ public open class MemberAccess <: Expr {
+     }
+ }
+ 
++public open class IndexAccess <: Expr {
++    private var baseExpr_: Node
++    private var indexExpr_: Expr
++
++    public init() {
++        this(NodeId(), Expr(), Expr())
++    }
++
++    public IndexAccess(id: NodeId, baseExpr: Node, indexExpr: Expr) {
++        super(id)
++        baseExpr_ = baseExpr
++        indexExpr_ = indexExpr
++    }
++
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
++        baseExpr.prettyPrint(printer)
++        printer.append("[")
++        indexExpr.prettyPrint(printer)
++        printer.append("]")
++    }
++
++    public override func yamlPrint(printer: YamlPrinter): Unit {
++        printer.print("type", "IndexAccess")
++        printer.printObject("baseExpr", baseExpr)
++        printer.printObject("indexExpr", indexExpr)
++    }
++
++    public open override func traverse<R>(v: Visitor<R>): R {
++        v.visit(this)
++    }
++
++    public mut prop baseExpr: Node {
++        get() {
++            baseExpr_
++        }
++        set(v) {
++            baseExpr_ = v
++        }
++    }
++
++    public mut prop indexExpr: Expr {
++        get() {
++            indexExpr_
++        }
++        set(v) {
++            indexExpr_ = v
++        }
++    }
++}
++
+ public class PrimitiveTypeExpr <: Expr {
+     private var keyword_: Token
+ 
+@@ -717,3 +788,145 @@ public class ThisSuperExpr <: Expr {
+         }
+     }
+ }
++
++public class TupleExpr <: Expr {
++    private var elements_: ArrayList<Expr>
++
++    public init() {
++        this(NodeId(), ArrayList<Expr>())
++    }
++
++    public TupleExpr(id: NodeId, elements: ArrayList<Expr>) {
++        super(id)
++        elements_ = elements
++    }
++
++    public override func traverse<R>(v: Visitor<R>): R {
++        v.visit(this)
++    }
++
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
++        printer.append("(")
++        elements[0].prettyPrint(printer)
++        elements.iterator().enumerate().filter({e => e[0] > 0}).map({e => e[1]}).forEach(
++            {
++                el =>
++                    printer.append(", ");
++                    el.prettyPrint(printer)
++            }
++        )
++        printer.append(")")
++    }
++
++    public override func yamlPrint(printer: YamlPrinter): Unit {
++        printer.print("type", "TupleExpr")
++        printer.printList("elements", elements)
++    }
++
++    public mut prop elements: ArrayList<Expr> {
++        get() {
++            elements_
++        }
++        set(v) {
++            elements_ = v
++        }
++    }
++}
++
++public class IsExpr <: Expr {
++    private var expr_: Expr
++    private var typeNode_: TypeNode
++
++    public init() {
++        this(NodeId(), Expr(), TypeNode())
++    }
++
++    public IsExpr(id: NodeId, expr: Expr, typeNode: TypeNode) {
++        super(id)
++        expr_ = expr
++        typeNode_ = typeNode
++    }
++
++    public override func traverse<R>(v: Visitor<R>): R {
++        v.visit(this)
++    }
++
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
++        expr.prettyPrint(printer)
++        printer.append(" is ")
++        typeNode.prettyPrint(printer)
++    }
++
++    public override func yamlPrint(printer: YamlPrinter): Unit {
++        printer.print("type", "IsExpr")
++        printer.printObject("expr", expr)
++        printer.printObject("typeNode", typeNode)
++    }
++
++    public mut prop expr: Expr {
++        get() {
++            expr_
++        }
++        set(v) {
++            expr_ = v
++        }
++    }
++
++    public mut prop typeNode: TypeNode {
++        get() {
++            typeNode_
++        }
++        set(v) {
++            typeNode_ = v
++        }
++    }
++}
++
++public class AsExpr <: Expr {
++    private var expr_: Expr
++    private var typeNode_: TypeNode
++
++    public init() {
++        this(NodeId(), Expr(), TypeNode())
++    }
++
++    public AsExpr(id: NodeId, expr: Expr, typeNode: TypeNode) {
++        super(id)
++        expr_ = expr
++        typeNode_ = typeNode
++    }
++
++    public override func traverse<R>(v: Visitor<R>): R {
++        v.visit(this)
++    }
++
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
++        expr.prettyPrint(printer)
++        printer.append(" as ")
++        typeNode.prettyPrint(printer)
++    }
++
++    public override func yamlPrint(printer: YamlPrinter): Unit {
++        printer.print("type", "AsExpr")
++        printer.printObject("expr", expr)
++        printer.printObject("typeNode", typeNode)
++    }
++
++    public mut prop expr: Expr {
++        get() {
++            expr_
++        }
++        set(v) {
++            expr_ = v
++        }
++    }
++
++    public mut prop typeNode: TypeNode {
++        get() {
++            typeNode_
++        }
++        set(v) {
++            typeNode_ = v
++        }
++    }
++}
+diff --git a/src/visitor/Reference.cj b/src/visitor/Reference.cj
+index 88b8e91..252c0be 100644
+--- a/src/visitor/Reference.cj
++++ b/src/visitor/Reference.cj
+@@ -347,12 +347,12 @@ public class ClassDeclWithRef <: ClassDecl {
+ public class RefExprWithRef <: RefExpr {
+     private var ref_: ?Reference
+ 
+-    public init(id: NodeId, identifier: Token) {
+-        this(id, identifier, None)
++    public init(id: NodeId, identifier: Token, typeArguments: ArrayList<TypeNode>) {
++        this(id, identifier, typeArguments, None)
+     }
+ 
+-    public init(id: NodeId, identifier: Token, ref: ?Reference) {
+-        super(id, identifier)
++    public init(id: NodeId, identifier: Token, typeArguments: ArrayList<TypeNode>, ref: ?Reference) {
++        super(id, identifier, typeArguments)
+         ref_ = ref
+     }
+ 
+diff --git a/src/visitor/TypeNodes.cj b/src/visitor/TypeNodes.cj
+index f7317b9..a7fdad2 100644
+--- a/src/visitor/TypeNodes.cj
++++ b/src/visitor/TypeNodes.cj
+@@ -75,7 +75,7 @@ public class PrimitiveType <: TypeNode {
+         v.visit(this)
+     }
+ 
+-    public override func prettyPrint(printer: PrettyPrinter) {
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
+         super.prettyPrint(printer)
+         printer.append(typeName.value)
+     }
+@@ -91,30 +91,52 @@ public class PrimitiveType <: TypeNode {
+ }
+ 
+ public class RefType <: TypeNode {
+-    public init(id: NodeId, typeParameterName: Token, typeName: Token) {
++    private var typeArguments_: ArrayList<TypeNode>
++
++    public init(id: NodeId, typeParameterName: Token, typeName: Token, typeArguments: ArrayList<TypeNode>) {
+         super(id, typeParameterName, typeName)
++        typeArguments_ = typeArguments
+     }
+ 
+     public override func traverse<R>(v: Visitor<R>): R {
+         v.visit(this)
+     }
+ 
+-    public override func prettyPrint(printer: PrettyPrinter) {
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
+         super.prettyPrint(printer)
+         printer.append(typeName.value)
++        if (typeArguments_.size > 0) {
++            printer.append("<")
++            typeArguments_[0].prettyPrint(printer)
++            for (typeArg in typeArguments_.iterator().skip(1)) {
++                printer.append(", ")
++                typeArg.prettyPrint(printer)
++            }
++            printer.append(">")
++        }
+     }
+ 
+     public override func yamlPrint(printer: YamlPrinter): Unit {
+         printer.print("type", "RefType")
+         super.yamlPrint(printer)
++        printer.printList("typeArguments", typeArguments_)
++    }
++
++    public mut prop typeArguments: ArrayList<TypeNode> {
++        get() {
++            typeArguments_
++        }
++        set(v) {
++            typeArguments_ = v
++        }
+     }
+ }
+ 
+ public class FuncType <: TypeNode {
+     static let ARROW_TOKEN = Token(TokenKind.ARROW, "->", Position())
+ 
+-    private let paramTypes_: ArrayList<TypeNode>
+-    private let returnType_: TypeNode
++    private var paramTypes_: ArrayList<TypeNode>
++    private var returnType_: TypeNode
+ 
+     public init(id: NodeId, typeParameterName: ?Token, paramTypes: ArrayList<TypeNode>, returnType: TypeNode) {
+         super(id, typeParameterName.getOrDefault({=> ARROW_TOKEN}), ARROW_TOKEN)
+@@ -122,25 +144,31 @@ public class FuncType <: TypeNode {
+         returnType_ = returnType
+     }
+ 
+-    public prop paramTypes: ArrayList<TypeNode> {
++    public mut prop paramTypes: ArrayList<TypeNode> {
+         get() {
+             paramTypes_
+         }
++        set(v) {
++            paramTypes_ = v
++        }
+     }
+ 
+-    public prop returnType: TypeNode {
++    public mut prop returnType: TypeNode {
+         get() {
+             returnType_
+         }
++        set(v) {
++            returnType_ = v
++        }
+     }
+ 
+     public override func traverse<R>(v: Visitor<R>): R {
+         v.visit(this)
+     }
+ 
+-    public override func prettyPrint(printer: PrettyPrinter) {
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
+         super.prettyPrint(printer)
+-        printer.append("fn(")
++        printer.append("(")
+         for ((i, paramType) in paramTypes_.iterator().enumerate()) {
+             paramType.prettyPrint(printer)
+             if (i < paramTypes_.size - 1) {
+@@ -158,3 +186,45 @@ public class FuncType <: TypeNode {
+         printer.printObject("returnType", returnType_)
+     }
+ }
++
++public class TupleType <: TypeNode {
++    static let TUPLE_TOKEN = Token(TokenKind.UNIT_LITERAL, "()", Position())
++
++    private var elementTypes_: ArrayList<TypeNode>
++
++    public init(id: NodeId, typeParameterName: ?Token, elementTypes: ArrayList<TypeNode>) {
++        super(id, typeParameterName.getOrDefault({=> TUPLE_TOKEN}), TUPLE_TOKEN)
++        elementTypes_ = elementTypes
++    }
++
++    public mut prop elementTypes: ArrayList<TypeNode> {
++        get() {
++            elementTypes_
++        }
++        set(v) {
++            elementTypes_ = v
++        }
++    }
++
++    public override func traverse<R>(v: Visitor<R>): R {
++        v.visit(this)
++    }
++
++    public override func prettyPrint(printer: PrettyPrinter): Unit {
++        super.prettyPrint(printer)
++        printer.append("(")
++        for ((i, elemType) in elementTypes_.iterator().enumerate()) {
++            elemType.prettyPrint(printer)
++            if (i < elementTypes_.size - 1) {
++                printer.append(", ")
++            }
++        }
++        printer.append(")")
++    }
++
++    public override func yamlPrint(printer: YamlPrinter): Unit {
++        printer.print("type", "TupleType")
++        super.yamlPrint(printer)
++        printer.printList("elementTypes", elementTypes_)
++    }
++}
+diff --git a/src/visitor/Visitor.cj b/src/visitor/Visitor.cj
+index a4e778f..aa6840a 100644
+--- a/src/visitor/Visitor.cj
++++ b/src/visitor/Visitor.cj
+@@ -53,6 +53,18 @@ public abstract class Visitor<R> {
+         throw Exception("Unimplemented method for Visitor : Jump Expression")
+     }
+ 
++    protected open func visit(_: TupleExpr): R {
++        throw Exception("Unimplemented method for Visitor : Tuple Expression")
++    }
++
++    protected open func visit(_: IsExpr): R {
++        throw Exception("Unimplemented method for Visitor : Is Expression")
++    }
++
++    protected open func visit(_: AsExpr): R {
++        throw Exception("Unimplemented method for Visitor : As Expression")
++    }
++
+     protected open func visit(_: VarDecl): R {
+         throw Exception("Unimplemented method for Visitor : Variable Declaration")
+     }
+@@ -97,6 +109,10 @@ public abstract class Visitor<R> {
+         throw Exception("Unimplemented method for Visitor : Function Type")
+     }
+ 
++    protected open func visit(_: TupleType): R {
++        throw Exception("Unimplemented method for Visitor : Tuple Type")
++    }
++
+     protected open func visit(_: VariableReference): R {
+         throw Exception("Unimplemented method for Visitor : Variable Reference (ASG)")
+     }
+@@ -129,6 +145,10 @@ public abstract class Visitor<R> {
+         throw Exception("Unimplemented method for Visitor : Member Access")
+     }
+ 
++    protected open func visit(_: IndexAccess): R {
++        throw Exception("Unimplemented method for Visitor : Index Access")
++    }
++
+     protected open func visit(_: PrimitiveTypeExpr): R {
+         throw Exception("Unimplemented method for Visitor : Primitive type expression")
+     }
+@@ -204,7 +224,8 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
+         assignExpr.right.traverse(this)
+     }
+ 
+-    public open override func visit(_: RefExpr): R {
++    public open override func visit(refExpr: RefExpr): R {
++        refExpr.typeArguments.iterator().forEach({typeArg => typeArg.traverse(this)})
+         default
+     }
+ 
+@@ -243,6 +264,23 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
+         default
+     }
+ 
++    public open override func visit(tupleExpr: TupleExpr): R {
++        for (element in tupleExpr.elements) {
++            element.traverse(this)
++        }
++        default
++    }
++
++    public open override func visit(isExpr: IsExpr): R {
++        isExpr.expr.traverse(this)
++        isExpr.typeNode.traverse(this)
++    }
++
++    public open override func visit(asExpr: AsExpr): R {
++        asExpr.expr.traverse(this)
++        asExpr.typeNode.traverse(this)
++    }
++
+     public open override func visit(varDecl: VarDecl): R {
+         if (let Some(initzer) <- varDecl.initializer) {
+             initzer.traverse(this)
+@@ -305,6 +343,14 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
+         default
+     }
+ 
++    public open override func visit(_: FuncType): R {
++        default
++    }
++
++    public open override func visit(_: TupleType): R {
++        default
++    }
++
+     public open override func visit(_: VariableReference): R {
+         default
+     }
+@@ -364,6 +410,11 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
+         memberAccess.baseExpr.traverse(this)
+     }
+ 
++    public open override func visit(indexAccess: IndexAccess): R {
++        indexAccess.baseExpr.traverse(this)
++        indexAccess.indexExpr.traverse(this)
++    }
++
+     public open override func visit(_: PrimitiveTypeExpr): R {
+         default
+     }

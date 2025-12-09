@@ -1,0 +1,919 @@
+package cjcj.test
+
+import cjcj.visitor.*
+import cjcj.parser
+import cjcj.scanner.*
+import std.env.*
+import std.collection.ArrayList
+import std.unittest.*
+import std.unittest.testmacro.*
+
+/* ===== Emitted by MacroCall @Test in parser_test.cj:11:1 ===== */
+/* 11.1 */@Attribute[TEST_GENERATED] class ParserTests <: TestClass {
+/* 11.2 */    private func scan(test: String): Array < Token > {
+/* 11.3 */        Scanner(test.toRuneArray()).scanTokens().toArray()
+/* 11.4 */    }
+/* 11.5 */    
+/* 11.6 */    private func parse(test: String):?Program {
+/* 11.7 */        let tokens: Array < Token >= scan(test)
+/* 11.8 */        parser.Parser(tokens, parser.Reporter(getStdErr(), tokens)).parse()
+/* 11.9 */    }
+/* 11.10 */    
+/* 11.11 */    private func getMain(test: String): MainDecl {
+/* 11.12 */        let program = parse(test)
+/* 11.13 */        assertEqual("program.isSome()", "true", program.isSome(), true)
+/* 11.14 */        for(d in program.getOrThrow().decls) {
+/* 11.15 */            if(let Some(m) <-(d as MainDecl)) {
+/* 11.16 */                return m
+/* 11.17 */            }
+/* 11.18 */        }
+/* 11.19 */        throw Exception("No main inside program")
+/* 11.20 */    }
+/* 11.21 */    
+/* 11.22 */    @Attribute[TestCase_0]
+/* 11.23 */    func mainDecl_test() {
+/* 11.24 */        let test: String = """
+            main(): Unit{
+            }"""
+/* 11.25 */        getMain(test)
+/* 11.26 */    }
+/* 11.27 */    
+/* 11.28 */    @Attribute[TestCase_1]
+/* 11.29 */    func mainDeclTooManyParams_test() {
+/* 11.30 */        let test: String = """
+            main(a: Int64, b: String): Unit{
+            }"""
+/* 11.31 */        assertEqual("parse(test).isNone()", "true", parse(test).isNone(), true)
+/* 11.32 */    }
+/* 11.33 */    
+/* 11.34 */    @Attribute[TestCase_2]
+/* 11.35 */    func funcDecl_test() {
+/* 11.36 */        let test: String = """
+            main(){
+                func a() {
+                }
+            }"""
+/* 11.37 */        let m: MainDecl = getMain(test)
+/* 11.38 */        assertEqual("m.block.nodes.iterator().all({ n => n is FuncDecl })", "true", m.block.nodes.iterator().all({ n => n is FuncDecl }), true)
+/* 11.39 */    }
+/* 11.40 */    
+/* 11.41 */    @Attribute[TestCase_3]
+/* 11.42 */    func funcDeclParams_test() {
+/* 11.43 */        let test: String = """
+            class CustomType {
+            }
+            main(){
+                func a(a: Int64, b: Unit, c: CustomType) {
+                }
+            }
+            """
+/* 11.44 */        let m: MainDecl = getMain(test)
+/* 11.45 */        assertEqual("m.block.nodes.iterator().all({ n => n is FuncDecl })", "true", m.block.nodes.iterator().all({ n => n is FuncDecl }), true)
+/* 11.46 */        let decl: FuncDecl =(m.block.nodes[0] as FuncDecl).getOrThrow()
+/* 11.47 */        assertEqual("decl.params.size == 3", "true", decl.params.size == 3, true)
+/* 11.48 */    }
+/* 11.49 */    
+/* 11.50 */    @Attribute[TestCase_4]
+/* 11.51 */    func funcDeclDeclType_test() {
+/* 11.52 */        let test: String = """
+            main(){
+                func a(): Int64 {
+                }
+            }"""
+/* 11.53 */        let m: MainDecl = getMain(test)
+/* 11.54 */        assertEqual("m.block.nodes.iterator().all({ n => n is FuncDecl })", "true", m.block.nodes.iterator().all({ n => n is FuncDecl }), true)
+/* 11.55 */        let decl: FuncDecl =(m.block.nodes[0] as FuncDecl).getOrThrow()
+/* 11.56 */        assertEqual("decl.declType.isSome()", "true", decl.declType.isSome(), true)
+/* 11.57 */    }
+/* 11.58 */    
+/* 11.59 */    @Attribute[TestCase_5]
+/* 11.60 */    func funcDeclBlock_test() {
+/* 11.61 */        let test: String = """
+            func f() {
+            }
+            main(){
+                func a() {
+                    let test = 3986
+                    var b: String = "string"
+                    while (test == 5) {
+                        f()
+                    }
+                    if (true) {
+                        return 9
+                    }
+                    return 6347
+                }
+            }
+            """
+/* 11.62 */        let m: MainDecl = getMain(test)
+/* 11.63 */        assertEqual("m.block.nodes.iterator().all({ n => n is FuncDecl })", "true", m.block.nodes.iterator().all({ n => n is FuncDecl }), true)
+/* 11.64 */        let decl: FuncDecl =(m.block.nodes[0] as FuncDecl).getOrThrow()
+/* 11.65 */        assertEqual("decl.block.getOrThrow().nodes.size == 5", "true", decl.block.getOrThrow().nodes.size == 5, true)
+/* 11.66 */    }
+/* 11.67 */    
+/* 11.68 */    @Attribute[TestCase_6]
+/* 11.69 */    func funcDeclGeneral_test() {
+/* 11.70 */        let test: String = """
+            class CustomType {
+            }
+            main(){
+                func a(a: Int64, b: Unit, c: CustomType): Int64 {
+                    let bo = 5
+                    if (bo == 7) {
+                        return 4
+                    }
+                    return 10
+                }
+            }"""
+/* 11.71 */        let m: MainDecl = getMain(test)
+/* 11.72 */        assertEqual("m.block.nodes.iterator().all({ n => n is FuncDecl })", "true", m.block.nodes.iterator().all({ n => n is FuncDecl }), true)
+/* 11.73 */        let decl: FuncDecl =(m.block.nodes[0] as FuncDecl).getOrThrow()
+/* 11.74 */        assertEqual("decl.declType.isSome()", "true", decl.declType.isSome(), true)
+/* 11.75 */        assertEqual("decl.params.size == 3", "true", decl.params.size == 3, true)
+/* 11.76 */        assertEqual("decl.block.getOrThrow().nodes.size == 3", "true", decl.block.getOrThrow().nodes.size == 3, true)
+/* 11.77 */    }
+/* 11.78 */    
+/* 11.79 */    @Attribute[TestCase_7]
+/* 11.80 */    func classDecl_test() {
+/* 11.81 */        let test: String = """
+            class a {
+            }
+            main(){
+            }"""
+/* 11.82 */        let p:?Program = parse(test)
+/* 11.83 */        assertEqual("p.isSome()", "true", p.isSome(), true)
+/* 11.84 */        let program = p.getOrThrow()
+/* 11.85 */        assertEqual("program.decls[0] is ClassDecl", "true", program.decls[0] is ClassDecl, true)
+/* 11.86 */    }
+/* 11.87 */    
+/* 11.88 */    @Attribute[TestCase_8]
+/* 11.89 */    func classDeclWithSupertypes_test() {
+/* 11.90 */        let test: String = """
+            class a <: b & c & d {
+            }
+            class b {
+            }
+            class c {
+            }
+            class d {
+            }
+            main(){
+            }"""
+/* 11.91 */        let p:?Program = parse(test)
+/* 11.92 */        assertEqual("p.isSome()", "true", p.isSome(), true)
+/* 11.93 */        let program = p.getOrThrow()
+/* 11.94 */        assertEqual("program.decls[0] is ClassDecl", "true", program.decls[0] is ClassDecl, true)
+/* 11.95 */        let classDecl =(program.decls[0] as ClassDecl).getOrThrow()
+/* 11.96 */        assertEqual("classDecl.superTypes.size == 3", "true", classDecl.superTypes.size == 3, true)
+/* 11.97 */    }
+/* 11.98 */    
+/* 11.99 */    @Attribute[TestCase_9]
+/* 11.100 */    func classDeclBody_test() {
+/* 11.101 */        let test: String = """
+            class a {
+                let a = 6
+                let b: Int64 = 347
+                func c() {
+                }
+                init(a: CustomType) {
+                }
+            }
+            class CustomType {
+            }
+            main(){
+            }"""
+/* 11.102 */        let p:?Program = parse(test)
+/* 11.103 */        assertEqual("p.isSome()", "true", p.isSome(), true)
+/* 11.104 */        let program = p.getOrThrow()
+/* 11.105 */        assertEqual("program.decls[0] is ClassDecl", "true", program.decls[0] is ClassDecl, true)
+/* 11.106 */        let classDecl =(program.decls[0] as ClassDecl).getOrThrow()
+/* 11.107 */        assertEqual("classDecl.body.decls.size == 4", "true", classDecl.body.decls.size == 4, true)
+/* 11.108 */    }
+/* 11.109 */    
+/* 11.110 */    @Attribute[TestCase_10]
+/* 11.111 */    func varDecl_test() {
+/* 11.112 */        let test: String = """
+            main(){
+                let a: Int32
+                let b: Int64 = 567
+                var c: Int32
+                var d = 567
+            }"""
+/* 11.113 */        let m: MainDecl = getMain(test)
+/* 11.114 */        assertEqual("m.block.nodes.iterator().all({ n => n is VarDecl })", "true", m.block.nodes.iterator().all({ n => n is VarDecl }), true)
+/* 11.115 */        let decls: ArrayList < VarDecl >= m.block.nodes.iterator().map({ n =>(n as VarDecl).getOrThrow() }).fold(ArrayList(), { res, decl => res.add(decl)
+/* 11.116 */        res })
+/* 11.117 */        expectEqual("decls[0].initializer.isNone()", "true", decls[0].initializer.isNone(), true)
+/* 11.118 */        expectEqual("decls[1].initializer.isSome()", "true", decls[1].initializer.isSome(), true)
+/* 11.119 */        expectEqual("decls[2].initializer.isNone()", "true", decls[2].initializer.isNone(), true)
+/* 11.120 */        expectEqual("decls[3].initializer.isSome()", "true", decls[3].initializer.isSome(), true)
+/* 11.121 */        expectEqual("decls[0].declType.isSome()", "true", decls[0].declType.isSome(), true)
+/* 11.122 */        expectEqual("decls[1].declType.isSome()", "true", decls[1].declType.isSome(), true)
+/* 11.123 */        expectEqual("decls[2].declType.isSome()", "true", decls[2].declType.isSome(), true)
+/* 11.124 */        expectEqual("decls[3].declType.isNone()", "true", decls[3].declType.isNone(), true)
+/* 11.125 */        expectEqual("decls[0].keyword.kind == TokenKind.LET", "true", decls[0].keyword.kind == TokenKind.LET, true)
+/* 11.126 */        expectEqual("decls[1].keyword.kind == TokenKind.LET", "true", decls[1].keyword.kind == TokenKind.LET, true)
+/* 11.127 */        expectEqual("decls[2].keyword.kind == TokenKind.VAR", "true", decls[2].keyword.kind == TokenKind.VAR, true)
+/* 11.128 */        expectEqual("decls[3].keyword.kind == TokenKind.VAR", "true", decls[3].keyword.kind == TokenKind.VAR, true)
+/* 11.129 */    }
+/* 11.130 */    
+/* 11.131 */    @Attribute[TestCase_11]
+/* 11.132 */    func binaryExpr_test() {
+/* 11.133 */        let test: String = """
+            main(){
+                1 + 5
+                1 - 5
+                1 * 5
+                1 / 5
+                1 ** 5
+            }"""
+/* 11.134 */        let m: MainDecl = getMain(test)
+/* 11.135 */        assertEqual("m.block.nodes.iterator().all({ n => n is BinaryExpr })", "true", m.block.nodes.iterator().all({ n => n is BinaryExpr }), true)
+/* 11.136 */    }
+/* 11.137 */    
+/* 11.138 */    @Attribute[TestCase_12]
+/* 11.139 */    func unaryExpr_test() {
+/* 11.140 */        let test: String = """
+            main(){
+                -134
+                !134
+            }"""
+/* 11.141 */        let m: MainDecl = getMain(test)
+/* 11.142 */        assertEqual("m.block.nodes.iterator().all({ n => n is UnaryExpr })", "true", m.block.nodes.iterator().all({ n => n is UnaryExpr }), true)
+/* 11.143 */    }
+/* 11.144 */    
+/* 11.145 */    @Attribute[TestCase_13]
+/* 11.146 */    func parenExpr_test() {
+/* 11.147 */        let test: String = """
+            let a = 2
+            main(){
+                (-134)
+                (134 + (5486 - 12) + a)
+            }"""
+/* 11.148 */        let m: MainDecl = getMain(test)
+/* 11.149 */        assertEqual("m.block.nodes.iterator().all({ n => n is ParenExpr })", "true", m.block.nodes.iterator().all({ n => n is ParenExpr }), true)
+/* 11.150 */    }
+/* 11.151 */    
+/* 11.152 */    @Attribute[TestCase_14]
+/* 11.153 */    func litConstExpr_test() {
+/* 11.154 */        let test: String = """
+            main(){
+                1231
+                "string"
+                ()
+                1.2
+                true
+                false
+                r'a'
+                b'1'
+            }"""
+/* 11.155 */        let m: MainDecl = getMain(test)
+/* 11.156 */        assertEqual("m.block.nodes.iterator().all({ n => n is LitConstExpr })", "true", m.block.nodes.iterator().all({ n => n is LitConstExpr }), true)
+/* 11.157 */    }
+/* 11.158 */    
+/* 11.159 */    @Attribute[TestCase_15]
+/* 11.160 */    func assignExpr_test() {
+/* 11.161 */        let test: String = """
+            var a: Int64 = 1
+            var b: Int64 = 2
+            main(){
+                a = 1231 + 8735
+                b = a
+            }"""
+/* 11.162 */        let m: MainDecl = getMain(test)
+/* 11.163 */        assertEqual("m.block.nodes.iterator().all({ n => n is AssignExpr })", "true", m.block.nodes.iterator().all({ n => n is AssignExpr }), true)
+/* 11.164 */    }
+/* 11.165 */    
+/* 11.166 */    @Attribute[TestCase_16]
+/* 11.167 */    func refExpr_test() {
+/* 11.168 */        let test: String = """
+            let identifier = 1
+            main(){
+                identifier
+            }"""
+/* 11.169 */        let m: MainDecl = getMain(test)
+/* 11.170 */        assertEqual("m.block.nodes.iterator().all({ n => n is RefExpr })", "true", m.block.nodes.iterator().all({ n => n is RefExpr }), true)
+/* 11.171 */    }
+/* 11.172 */    
+/* 11.173 */    @Attribute[TestCase_17]
+/* 11.174 */    func ifExpr_test() {
+/* 11.175 */        let test: String = """
+            main(){
+                if (1 == 2) {
+                    1
+                } else if (1 == 3) {
+                    2
+                } else {
+                    3
+                }
+            }"""
+/* 11.176 */        let m: MainDecl = getMain(test)
+/* 11.177 */        assertEqual("m.block.nodes.iterator().all({ n => n is IfExpr })", "true", m.block.nodes.iterator().all({ n => n is IfExpr }), true)
+/* 11.178 */    }
+/* 11.179 */    
+/* 11.180 */    @Attribute[TestCase_18]
+/* 11.181 */    func ifExprDesugar_test() {
+/* 11.182 */        let test: String = """
+            main(){
+                if (1 == 2) {
+                    1
+                }
+            }"""
+/* 11.183 */        let m: MainDecl = getMain(test)
+/* 11.184 */        assertEqual("m.block.nodes.iterator().all({ n => n is IfExpr })", "true", m.block.nodes.iterator().all({ n => n is IfExpr }), true)
+/* 11.185 */    }
+/* 11.186 */    
+/* 11.187 */    @Attribute[TestCase_19]
+/* 11.188 */    func whileExpr_test() {
+/* 11.189 */        let test: String = """
+            main(){
+                while (1 == 2) {
+                    1
+                }
+            }"""
+/* 11.190 */        let m: MainDecl = getMain(test)
+/* 11.191 */        assertEqual("m.block.nodes.iterator().all({ n => n is WhileExpr })", "true", m.block.nodes.iterator().all({ n => n is WhileExpr }), true)
+/* 11.192 */    }
+/* 11.193 */    
+/* 11.194 */    @Attribute[TestCase_20]
+/* 11.195 */    func callExpr_test() {
+/* 11.196 */        let test: String = """
+            func a() {
+            }
+            main(){
+                a()
+            }"""
+/* 11.197 */        let m: MainDecl = getMain(test)
+/* 11.198 */        assertEqual("m.block.nodes.iterator().all({ n => n is CallExpr })", "true", m.block.nodes.iterator().all({ n => n is CallExpr }), true)
+/* 11.199 */    }
+/* 11.200 */    
+/* 11.201 */    @Attribute[TestCase_21]
+/* 11.202 */    func returnExpr_test() {
+/* 11.203 */        let test: String = """
+            main(){
+                return 1
+            }"""
+/* 11.204 */        let m: MainDecl = getMain(test)
+/* 11.205 */        assertEqual("m.block.nodes.iterator().all({ n => n is ReturnExpr })", "true", m.block.nodes.iterator().all({ n => n is ReturnExpr }), true)
+/* 11.206 */    }
+/* 11.207 */    
+/* 11.208 */    @Attribute[TestCase_22]
+/* 11.209 */    func returnExprNoExpression_test() {
+/* 11.210 */        let test: String = """
+            main(){
+                return
+            }"""
+/* 11.211 */        let m: MainDecl = getMain(test)
+/* 11.212 */        assertEqual("m.block.nodes.iterator().all({ n => n is ReturnExpr })", "true", m.block.nodes.iterator().all({ n => n is ReturnExpr }), true)
+/* 11.213 */    }
+/* 11.214 */    
+/* 11.215 */    @Attribute[TestCase_23]
+/* 11.216 */    func returnExprUnitFunc_test() {
+/* 11.217 */        let test: String = """
+            let a = 1
+            main(): Unit{
+                return a
+            }"""
+/* 11.218 */        let m: MainDecl = getMain(test)
+/* 11.219 */        assertEqual("m.block.nodes.iterator().all({ n => n is ReturnExpr })", "true", m.block.nodes.iterator().all({ n => n is ReturnExpr }), true)
+/* 11.220 */    }
+/* 11.221 */    
+/* 11.222 */    @Attribute[TestCase_24]
+/* 11.223 */    func jumpExpr_test() {
+/* 11.224 */        let test: String = """
+            main(){
+                break
+                continue
+            }"""
+/* 11.225 */        let m: MainDecl = getMain(test)
+/* 11.226 */        assertEqual("m.block.nodes.iterator().all({ n => n is JumpExpr })", "true", m.block.nodes.iterator().all({ n => n is JumpExpr }), true)
+/* 11.227 */    }
+/* 11.228 */    
+/* 11.229 */    @Attribute[TestCase_25]
+/* 11.230 */    func memberAccess_test() {
+/* 11.231 */        let test: String = """
+            class B {
+                let f = 1
+                func c() {
+                    B()
+                }
+            }
+            class A {
+                let b: B = B()
+            }
+            let a: A = A()
+            func c() {
+                A()
+            }
+            main(){
+                a.b.c().f
+                c().b
+            }"""
+/* 11.232 */        let m: MainDecl = getMain(test)
+/* 11.233 */        assertEqual("m.block.nodes.iterator().all({ n => n is MemberAccess })", "true", m.block.nodes.iterator().all({ n => n is MemberAccess }), true)
+/* 11.234 */    }
+/* 11.235 */    
+/* 11.236 */    @Attribute[TestCase_26]
+/* 11.237 */    func primitiveTypeExpr_test() {
+/* 11.238 */        let test: String = """
+            main(){
+                Int64
+                Unit
+            }"""
+/* 11.239 */        let m: MainDecl = getMain(test)
+/* 11.240 */        assertEqual("m.block.nodes.iterator().all({ n => n is PrimitiveTypeExpr })", "true", m.block.nodes.iterator().all({ n => n is PrimitiveTypeExpr }), true)
+/* 11.241 */    }
+/* 11.242 */    
+/* 11.243 */    @Attribute[TestCase_27]
+/* 11.244 */    func thisSuperExpr_test() {
+/* 11.245 */        let test: String = """
+            class A {
+                func a() {
+                    return this
+                }
+            }
+            main(){
+            }"""
+/* 11.246 */        assertEqual("parse(test).isSome()", "true", parse(test).isSome(), true)
+/* 11.247 */    }
+/* 11.248 */    
+/* 11.249 */    @Attribute[TestCase_28]
+/* 11.250 */    func general_test() {
+/* 11.251 */        let test: String = """
+            main(args: Bp){
+                let a: Int32
+                func A (a: Type, b: Type, c: Type){
+                    a = 1
+                    b = a + c
+
+                    if(true) {
+                        return a;
+                    } else {
+                    }
+                    
+                    return a;
+
+                    a + b
+                }
+
+                a = if(true) {
+                    2
+                } else if( boolean == 2 ) {
+                    "test-string"
+                } else {
+                    A()
+                }
+
+                let b = a + a
+
+                a = 3
+                a = 5.2
+                a = (a * c + (d - e)) ** 3
+
+                A()
+                A(1, 2, "test-param")
+            }
+            /*
+                Some comment
+                3(*&#@71I#(@))))))
+            */
+            """
+/* 11.252 */        assertEqual("parse(test).isSome()", "true", parse(test).isSome(), true)
+/* 11.253 */    }
+/* 11.254 */    
+/* 11.255 */    init() {
+/* 11.256 */    }
+/* 11.257 */    private func classConfiguration(): Configuration {
+/* 11.258 */        let configuration = Configuration()
+/* 11.259 */        
+/* 11.260 */        return configuration
+/* 11.261 */    }
+/* 11.262 */    public override func asTestSuite(): TestSuite {
+/* 11.263 */        
+/* 11.264 */        let suiteConfiguration = classConfiguration()
+/* 11.265 */        let suiteBuilder = TestSuite.builder("ParserTests").configure(suiteConfiguration)
+/* 11.266 */        
+/* 11.267 */        { => let caseConfig = Configuration()
+/* 11.268 */            
+/* 11.269 */            let mainDecl_testTestFunc = { => mainDecl_test();() }
+/* 11.270 */            suiteBuilder.add(
+/* 11.271 */            UnitTestCase.create(
+/* 11.272 */            "mainDecl_test",
+/* 11.273 */            configuration: caseConfig,
+/* 11.274 */            body: mainDecl_testTestFunc
+/* 11.275 */            )
+/* 11.276 */            )
+/* 11.277 */            
+/* 11.278 */        }()
+/* 11.279 */        
+/* 11.280 */        
+/* 11.281 */        { => let caseConfig = Configuration()
+/* 11.282 */            
+/* 11.283 */            let mainDeclTooManyParams_testTestFunc = { => mainDeclTooManyParams_test();() }
+/* 11.284 */            suiteBuilder.add(
+/* 11.285 */            UnitTestCase.create(
+/* 11.286 */            "mainDeclTooManyParams_test",
+/* 11.287 */            configuration: caseConfig,
+/* 11.288 */            body: mainDeclTooManyParams_testTestFunc
+/* 11.289 */            )
+/* 11.290 */            )
+/* 11.291 */            
+/* 11.292 */        }()
+/* 11.293 */        
+/* 11.294 */        
+/* 11.295 */        { => let caseConfig = Configuration()
+/* 11.296 */            
+/* 11.297 */            let funcDecl_testTestFunc = { => funcDecl_test();() }
+/* 11.298 */            suiteBuilder.add(
+/* 11.299 */            UnitTestCase.create(
+/* 11.300 */            "funcDecl_test",
+/* 11.301 */            configuration: caseConfig,
+/* 11.302 */            body: funcDecl_testTestFunc
+/* 11.303 */            )
+/* 11.304 */            )
+/* 11.305 */            
+/* 11.306 */        }()
+/* 11.307 */        
+/* 11.308 */        
+/* 11.309 */        { => let caseConfig = Configuration()
+/* 11.310 */            
+/* 11.311 */            let funcDeclParams_testTestFunc = { => funcDeclParams_test();() }
+/* 11.312 */            suiteBuilder.add(
+/* 11.313 */            UnitTestCase.create(
+/* 11.314 */            "funcDeclParams_test",
+/* 11.315 */            configuration: caseConfig,
+/* 11.316 */            body: funcDeclParams_testTestFunc
+/* 11.317 */            )
+/* 11.318 */            )
+/* 11.319 */            
+/* 11.320 */        }()
+/* 11.321 */        
+/* 11.322 */        
+/* 11.323 */        { => let caseConfig = Configuration()
+/* 11.324 */            
+/* 11.325 */            let funcDeclDeclType_testTestFunc = { => funcDeclDeclType_test();() }
+/* 11.326 */            suiteBuilder.add(
+/* 11.327 */            UnitTestCase.create(
+/* 11.328 */            "funcDeclDeclType_test",
+/* 11.329 */            configuration: caseConfig,
+/* 11.330 */            body: funcDeclDeclType_testTestFunc
+/* 11.331 */            )
+/* 11.332 */            )
+/* 11.333 */            
+/* 11.334 */        }()
+/* 11.335 */        
+/* 11.336 */        
+/* 11.337 */        { => let caseConfig = Configuration()
+/* 11.338 */            
+/* 11.339 */            let funcDeclBlock_testTestFunc = { => funcDeclBlock_test();() }
+/* 11.340 */            suiteBuilder.add(
+/* 11.341 */            UnitTestCase.create(
+/* 11.342 */            "funcDeclBlock_test",
+/* 11.343 */            configuration: caseConfig,
+/* 11.344 */            body: funcDeclBlock_testTestFunc
+/* 11.345 */            )
+/* 11.346 */            )
+/* 11.347 */            
+/* 11.348 */        }()
+/* 11.349 */        
+/* 11.350 */        
+/* 11.351 */        { => let caseConfig = Configuration()
+/* 11.352 */            
+/* 11.353 */            let funcDeclGeneral_testTestFunc = { => funcDeclGeneral_test();() }
+/* 11.354 */            suiteBuilder.add(
+/* 11.355 */            UnitTestCase.create(
+/* 11.356 */            "funcDeclGeneral_test",
+/* 11.357 */            configuration: caseConfig,
+/* 11.358 */            body: funcDeclGeneral_testTestFunc
+/* 11.359 */            )
+/* 11.360 */            )
+/* 11.361 */            
+/* 11.362 */        }()
+/* 11.363 */        
+/* 11.364 */        
+/* 11.365 */        { => let caseConfig = Configuration()
+/* 11.366 */            
+/* 11.367 */            let classDecl_testTestFunc = { => classDecl_test();() }
+/* 11.368 */            suiteBuilder.add(
+/* 11.369 */            UnitTestCase.create(
+/* 11.370 */            "classDecl_test",
+/* 11.371 */            configuration: caseConfig,
+/* 11.372 */            body: classDecl_testTestFunc
+/* 11.373 */            )
+/* 11.374 */            )
+/* 11.375 */            
+/* 11.376 */        }()
+/* 11.377 */        
+/* 11.378 */        
+/* 11.379 */        { => let caseConfig = Configuration()
+/* 11.380 */            
+/* 11.381 */            let classDeclWithSupertypes_testTestFunc = { => classDeclWithSupertypes_test();() }
+/* 11.382 */            suiteBuilder.add(
+/* 11.383 */            UnitTestCase.create(
+/* 11.384 */            "classDeclWithSupertypes_test",
+/* 11.385 */            configuration: caseConfig,
+/* 11.386 */            body: classDeclWithSupertypes_testTestFunc
+/* 11.387 */            )
+/* 11.388 */            )
+/* 11.389 */            
+/* 11.390 */        }()
+/* 11.391 */        
+/* 11.392 */        
+/* 11.393 */        { => let caseConfig = Configuration()
+/* 11.394 */            
+/* 11.395 */            let classDeclBody_testTestFunc = { => classDeclBody_test();() }
+/* 11.396 */            suiteBuilder.add(
+/* 11.397 */            UnitTestCase.create(
+/* 11.398 */            "classDeclBody_test",
+/* 11.399 */            configuration: caseConfig,
+/* 11.400 */            body: classDeclBody_testTestFunc
+/* 11.401 */            )
+/* 11.402 */            )
+/* 11.403 */            
+/* 11.404 */        }()
+/* 11.405 */        
+/* 11.406 */        
+/* 11.407 */        { => let caseConfig = Configuration()
+/* 11.408 */            
+/* 11.409 */            let varDecl_testTestFunc = { => varDecl_test();() }
+/* 11.410 */            suiteBuilder.add(
+/* 11.411 */            UnitTestCase.create(
+/* 11.412 */            "varDecl_test",
+/* 11.413 */            configuration: caseConfig,
+/* 11.414 */            body: varDecl_testTestFunc
+/* 11.415 */            )
+/* 11.416 */            )
+/* 11.417 */            
+/* 11.418 */        }()
+/* 11.419 */        
+/* 11.420 */        
+/* 11.421 */        { => let caseConfig = Configuration()
+/* 11.422 */            
+/* 11.423 */            let binaryExpr_testTestFunc = { => binaryExpr_test();() }
+/* 11.424 */            suiteBuilder.add(
+/* 11.425 */            UnitTestCase.create(
+/* 11.426 */            "binaryExpr_test",
+/* 11.427 */            configuration: caseConfig,
+/* 11.428 */            body: binaryExpr_testTestFunc
+/* 11.429 */            )
+/* 11.430 */            )
+/* 11.431 */            
+/* 11.432 */        }()
+/* 11.433 */        
+/* 11.434 */        
+/* 11.435 */        { => let caseConfig = Configuration()
+/* 11.436 */            
+/* 11.437 */            let unaryExpr_testTestFunc = { => unaryExpr_test();() }
+/* 11.438 */            suiteBuilder.add(
+/* 11.439 */            UnitTestCase.create(
+/* 11.440 */            "unaryExpr_test",
+/* 11.441 */            configuration: caseConfig,
+/* 11.442 */            body: unaryExpr_testTestFunc
+/* 11.443 */            )
+/* 11.444 */            )
+/* 11.445 */            
+/* 11.446 */        }()
+/* 11.447 */        
+/* 11.448 */        
+/* 11.449 */        { => let caseConfig = Configuration()
+/* 11.450 */            
+/* 11.451 */            let parenExpr_testTestFunc = { => parenExpr_test();() }
+/* 11.452 */            suiteBuilder.add(
+/* 11.453 */            UnitTestCase.create(
+/* 11.454 */            "parenExpr_test",
+/* 11.455 */            configuration: caseConfig,
+/* 11.456 */            body: parenExpr_testTestFunc
+/* 11.457 */            )
+/* 11.458 */            )
+/* 11.459 */            
+/* 11.460 */        }()
+/* 11.461 */        
+/* 11.462 */        
+/* 11.463 */        { => let caseConfig = Configuration()
+/* 11.464 */            
+/* 11.465 */            let litConstExpr_testTestFunc = { => litConstExpr_test();() }
+/* 11.466 */            suiteBuilder.add(
+/* 11.467 */            UnitTestCase.create(
+/* 11.468 */            "litConstExpr_test",
+/* 11.469 */            configuration: caseConfig,
+/* 11.470 */            body: litConstExpr_testTestFunc
+/* 11.471 */            )
+/* 11.472 */            )
+/* 11.473 */            
+/* 11.474 */        }()
+/* 11.475 */        
+/* 11.476 */        
+/* 11.477 */        { => let caseConfig = Configuration()
+/* 11.478 */            
+/* 11.479 */            let assignExpr_testTestFunc = { => assignExpr_test();() }
+/* 11.480 */            suiteBuilder.add(
+/* 11.481 */            UnitTestCase.create(
+/* 11.482 */            "assignExpr_test",
+/* 11.483 */            configuration: caseConfig,
+/* 11.484 */            body: assignExpr_testTestFunc
+/* 11.485 */            )
+/* 11.486 */            )
+/* 11.487 */            
+/* 11.488 */        }()
+/* 11.489 */        
+/* 11.490 */        
+/* 11.491 */        { => let caseConfig = Configuration()
+/* 11.492 */            
+/* 11.493 */            let refExpr_testTestFunc = { => refExpr_test();() }
+/* 11.494 */            suiteBuilder.add(
+/* 11.495 */            UnitTestCase.create(
+/* 11.496 */            "refExpr_test",
+/* 11.497 */            configuration: caseConfig,
+/* 11.498 */            body: refExpr_testTestFunc
+/* 11.499 */            )
+/* 11.500 */            )
+/* 11.501 */            
+/* 11.502 */        }()
+/* 11.503 */        
+/* 11.504 */        
+/* 11.505 */        { => let caseConfig = Configuration()
+/* 11.506 */            
+/* 11.507 */            let ifExpr_testTestFunc = { => ifExpr_test();() }
+/* 11.508 */            suiteBuilder.add(
+/* 11.509 */            UnitTestCase.create(
+/* 11.510 */            "ifExpr_test",
+/* 11.511 */            configuration: caseConfig,
+/* 11.512 */            body: ifExpr_testTestFunc
+/* 11.513 */            )
+/* 11.514 */            )
+/* 11.515 */            
+/* 11.516 */        }()
+/* 11.517 */        
+/* 11.518 */        
+/* 11.519 */        { => let caseConfig = Configuration()
+/* 11.520 */            
+/* 11.521 */            let ifExprDesugar_testTestFunc = { => ifExprDesugar_test();() }
+/* 11.522 */            suiteBuilder.add(
+/* 11.523 */            UnitTestCase.create(
+/* 11.524 */            "ifExprDesugar_test",
+/* 11.525 */            configuration: caseConfig,
+/* 11.526 */            body: ifExprDesugar_testTestFunc
+/* 11.527 */            )
+/* 11.528 */            )
+/* 11.529 */            
+/* 11.530 */        }()
+/* 11.531 */        
+/* 11.532 */        
+/* 11.533 */        { => let caseConfig = Configuration()
+/* 11.534 */            
+/* 11.535 */            let whileExpr_testTestFunc = { => whileExpr_test();() }
+/* 11.536 */            suiteBuilder.add(
+/* 11.537 */            UnitTestCase.create(
+/* 11.538 */            "whileExpr_test",
+/* 11.539 */            configuration: caseConfig,
+/* 11.540 */            body: whileExpr_testTestFunc
+/* 11.541 */            )
+/* 11.542 */            )
+/* 11.543 */            
+/* 11.544 */        }()
+/* 11.545 */        
+/* 11.546 */        
+/* 11.547 */        { => let caseConfig = Configuration()
+/* 11.548 */            
+/* 11.549 */            let callExpr_testTestFunc = { => callExpr_test();() }
+/* 11.550 */            suiteBuilder.add(
+/* 11.551 */            UnitTestCase.create(
+/* 11.552 */            "callExpr_test",
+/* 11.553 */            configuration: caseConfig,
+/* 11.554 */            body: callExpr_testTestFunc
+/* 11.555 */            )
+/* 11.556 */            )
+/* 11.557 */            
+/* 11.558 */        }()
+/* 11.559 */        
+/* 11.560 */        
+/* 11.561 */        { => let caseConfig = Configuration()
+/* 11.562 */            
+/* 11.563 */            let returnExpr_testTestFunc = { => returnExpr_test();() }
+/* 11.564 */            suiteBuilder.add(
+/* 11.565 */            UnitTestCase.create(
+/* 11.566 */            "returnExpr_test",
+/* 11.567 */            configuration: caseConfig,
+/* 11.568 */            body: returnExpr_testTestFunc
+/* 11.569 */            )
+/* 11.570 */            )
+/* 11.571 */            
+/* 11.572 */        }()
+/* 11.573 */        
+/* 11.574 */        
+/* 11.575 */        { => let caseConfig = Configuration()
+/* 11.576 */            
+/* 11.577 */            let returnExprNoExpression_testTestFunc = { => returnExprNoExpression_test();() }
+/* 11.578 */            suiteBuilder.add(
+/* 11.579 */            UnitTestCase.create(
+/* 11.580 */            "returnExprNoExpression_test",
+/* 11.581 */            configuration: caseConfig,
+/* 11.582 */            body: returnExprNoExpression_testTestFunc
+/* 11.583 */            )
+/* 11.584 */            )
+/* 11.585 */            
+/* 11.586 */        }()
+/* 11.587 */        
+/* 11.588 */        
+/* 11.589 */        { => let caseConfig = Configuration()
+/* 11.590 */            
+/* 11.591 */            let returnExprUnitFunc_testTestFunc = { => returnExprUnitFunc_test();() }
+/* 11.592 */            suiteBuilder.add(
+/* 11.593 */            UnitTestCase.create(
+/* 11.594 */            "returnExprUnitFunc_test",
+/* 11.595 */            configuration: caseConfig,
+/* 11.596 */            body: returnExprUnitFunc_testTestFunc
+/* 11.597 */            )
+/* 11.598 */            )
+/* 11.599 */            
+/* 11.600 */        }()
+/* 11.601 */        
+/* 11.602 */        
+/* 11.603 */        { => let caseConfig = Configuration()
+/* 11.604 */            
+/* 11.605 */            let jumpExpr_testTestFunc = { => jumpExpr_test();() }
+/* 11.606 */            suiteBuilder.add(
+/* 11.607 */            UnitTestCase.create(
+/* 11.608 */            "jumpExpr_test",
+/* 11.609 */            configuration: caseConfig,
+/* 11.610 */            body: jumpExpr_testTestFunc
+/* 11.611 */            )
+/* 11.612 */            )
+/* 11.613 */            
+/* 11.614 */        }()
+/* 11.615 */        
+/* 11.616 */        
+/* 11.617 */        { => let caseConfig = Configuration()
+/* 11.618 */            
+/* 11.619 */            let memberAccess_testTestFunc = { => memberAccess_test();() }
+/* 11.620 */            suiteBuilder.add(
+/* 11.621 */            UnitTestCase.create(
+/* 11.622 */            "memberAccess_test",
+/* 11.623 */            configuration: caseConfig,
+/* 11.624 */            body: memberAccess_testTestFunc
+/* 11.625 */            )
+/* 11.626 */            )
+/* 11.627 */            
+/* 11.628 */        }()
+/* 11.629 */        
+/* 11.630 */        
+/* 11.631 */        { => let caseConfig = Configuration()
+/* 11.632 */            
+/* 11.633 */            let primitiveTypeExpr_testTestFunc = { => primitiveTypeExpr_test();() }
+/* 11.634 */            suiteBuilder.add(
+/* 11.635 */            UnitTestCase.create(
+/* 11.636 */            "primitiveTypeExpr_test",
+/* 11.637 */            configuration: caseConfig,
+/* 11.638 */            body: primitiveTypeExpr_testTestFunc
+/* 11.639 */            )
+/* 11.640 */            )
+/* 11.641 */            
+/* 11.642 */        }()
+/* 11.643 */        
+/* 11.644 */        
+/* 11.645 */        { => let caseConfig = Configuration()
+/* 11.646 */            
+/* 11.647 */            let thisSuperExpr_testTestFunc = { => thisSuperExpr_test();() }
+/* 11.648 */            suiteBuilder.add(
+/* 11.649 */            UnitTestCase.create(
+/* 11.650 */            "thisSuperExpr_test",
+/* 11.651 */            configuration: caseConfig,
+/* 11.652 */            body: thisSuperExpr_testTestFunc
+/* 11.653 */            )
+/* 11.654 */            )
+/* 11.655 */            
+/* 11.656 */        }()
+/* 11.657 */        
+/* 11.658 */        
+/* 11.659 */        { => let caseConfig = Configuration()
+/* 11.660 */            
+/* 11.661 */            let general_testTestFunc = { => general_test();() }
+/* 11.662 */            suiteBuilder.add(
+/* 11.663 */            UnitTestCase.create(
+/* 11.664 */            "general_test",
+/* 11.665 */            configuration: caseConfig,
+/* 11.666 */            body: general_testTestFunc
+/* 11.667 */            )
+/* 11.668 */            )
+/* 11.669 */            
+/* 11.670 */        }()
+/* 11.671 */        
+/* 11.672 */        return suiteBuilder.build()
+/* 11.673 */    }
+/* 11.674 */    private func inheritedFromClassAnnotatedByTestTemplate < T >(): TestSuite where T <: TestClass {
+/* 11.675 */        throw Exception("Unreachable code")
+/* 11.676 */    }
+/* 11.677 */}
+/* 11.678 */
+/* 11.679 */
+/* 11.680 */interface TestPackageExtension_ParserTests {
+/* 11.681 */    func registerParserTests(): Unit
+/* 11.682 */}
+/* 11.683 */extend TestPackage <: TestPackageExtension_ParserTests {
+/* 11.684 */    @Attribute[TEST_REGISTER]
+/* 11.685 */    public func registerParserTests() {
+/* 11.686 */        registerSuite({ => ParserTests().asTestSuite() })
+/* 11.687 */    }
+/* 11.688 */}
+/* 11.689 */
+/* ===== End of the Emit ===== */

@@ -57,7 +57,7 @@ public class BinaryExpr <: Expr {
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "BinaryExpr")
         printer.printObject("left", left)
-        printer.print("oper", oper.value)
+        printer.print("oper", oper)
         printer.printObject("right", right)
     }
 
@@ -151,7 +151,8 @@ public class LitConstExpr <: Expr {
 
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "LitConstExpr")
-        printer.print("literal", '"' + literal.value + '"')
+        printer.print("kind", literal.kind)
+        printer.printLiteral("literal", literal)
     }
 
     public mut prop literal: Token {
@@ -189,7 +190,7 @@ public class UnaryExpr <: Expr {
 
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "UnaryExpr")
-        printer.print("oper", oper.value)
+        printer.print("oper", oper)
         printer.printObject("right", right)
     }
 
@@ -263,10 +264,12 @@ public class AssignExpr <: Expr {
 
 public open class RefExpr <: Expr {
     private var identifier_: Token
+    private var typeArguments_: ArrayList<TypeNode>
 
-    public RefExpr(id: NodeId, identifier: Token) {
+    public RefExpr(id: NodeId, identifier: Token, typeArguments: ArrayList<TypeNode>) {
         super(id)
         identifier_ = identifier
+        typeArguments_ = typeArguments
     }
 
     public open override func traverse<R>(v: Visitor<R>): R {
@@ -282,13 +285,32 @@ public open class RefExpr <: Expr {
         }
     }
 
+    public mut prop typeArguments: ArrayList<TypeNode> {
+        get() {
+            typeArguments_
+        }
+        set(v) {
+            typeArguments_ = v
+        }
+    }
+
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         printer.append(identifier.value)
+        if (typeArguments_.size > 0) {
+            printer.append("<")
+            typeArguments_[0].prettyPrint(printer)
+            for (typeArg in typeArguments_.iterator().skip(1)) {
+                printer.append(", ")
+                typeArg.prettyPrint(printer)
+            }
+            printer.append(">")
+        }
     }
 
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "RefExpr")
-        printer.print("identifier", identifier.value)
+        printer.print("identifier", identifier)
+        printer.printList("typeArguments", typeArguments)
     }
 }
 
@@ -542,7 +564,7 @@ public class ReturnExpr <: Expr {
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "ReturnExpr")
         printer.printOptionalObject("expr", expr)
-        printer.print("keyword", keyword.value)
+        printer.print("keyword", keyword)
     }
 
     public mut prop expr: ?Expr {
@@ -586,7 +608,7 @@ public class JumpExpr <: Expr {
 
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "JumpExpr")
-        printer.print("keyword", keyword.value)
+        printer.print("keyword", keyword)
     }
 
     public mut prop keyword: Token {
@@ -621,7 +643,7 @@ public open class MemberAccess <: Expr {
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "MemberAccess")
         printer.printObject("baseExpr", baseExpr)
-        printer.print("field", field.value)
+        printer.print("field", field)
     }
 
     public open override func traverse<R>(v: Visitor<R>): R {
@@ -647,6 +669,56 @@ public open class MemberAccess <: Expr {
     }
 }
 
+public open class IndexAccess <: Expr {
+    private var baseExpr_: Node
+    private var indexExpr_: Expr
+
+    public init() {
+        this(NodeId(), Expr(), Expr())
+    }
+
+    public IndexAccess(id: NodeId, baseExpr: Node, indexExpr: Expr) {
+        super(id)
+        baseExpr_ = baseExpr
+        indexExpr_ = indexExpr
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        baseExpr.prettyPrint(printer)
+        printer.append("[")
+        indexExpr.prettyPrint(printer)
+        printer.append("]")
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "IndexAccess")
+        printer.printObject("baseExpr", baseExpr)
+        printer.printObject("indexExpr", indexExpr)
+    }
+
+    public open override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop baseExpr: Node {
+        get() {
+            baseExpr_
+        }
+        set(v) {
+            baseExpr_ = v
+        }
+    }
+
+    public mut prop indexExpr: Expr {
+        get() {
+            indexExpr_
+        }
+        set(v) {
+            indexExpr_ = v
+        }
+    }
+}
+
 public class PrimitiveTypeExpr <: Expr {
     private var keyword_: Token
 
@@ -665,7 +737,7 @@ public class PrimitiveTypeExpr <: Expr {
 
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "PrimitiveTypeExpr")
-        printer.print("keyword", keyword.value)
+        printer.print("keyword", keyword)
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -700,7 +772,7 @@ public class ThisSuperExpr <: Expr {
 
     public override func yamlPrint(printer: YamlPrinter): Unit {
         printer.print("type", "ThisSuperExpr")
-        printer.print("keyword", keyword.value)
+        printer.print("keyword", keyword)
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -713,6 +785,148 @@ public class ThisSuperExpr <: Expr {
         }
         set(v) {
             keyword_ = v
+        }
+    }
+}
+
+public class TupleExpr <: Expr {
+    private var elements_: ArrayList<Expr>
+
+    public init() {
+        this(NodeId(), ArrayList<Expr>())
+    }
+
+    public TupleExpr(id: NodeId, elements: ArrayList<Expr>) {
+        super(id)
+        elements_ = elements
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append("(")
+        elements[0].prettyPrint(printer)
+        elements.iterator().enumerate().filter({e => e[0] > 0}).map({e => e[1]}).forEach(
+            {
+                el =>
+                    printer.append(", ");
+                    el.prettyPrint(printer)
+            }
+        )
+        printer.append(")")
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "TupleExpr")
+        printer.printList("elements", elements)
+    }
+
+    public mut prop elements: ArrayList<Expr> {
+        get() {
+            elements_
+        }
+        set(v) {
+            elements_ = v
+        }
+    }
+}
+
+public class IsExpr <: Expr {
+    private var expr_: Expr
+    private var typeNode_: TypeNode
+
+    public init() {
+        this(NodeId(), Expr(), TypeNode())
+    }
+
+    public IsExpr(id: NodeId, expr: Expr, typeNode: TypeNode) {
+        super(id)
+        expr_ = expr
+        typeNode_ = typeNode
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        expr.prettyPrint(printer)
+        printer.append(" is ")
+        typeNode.prettyPrint(printer)
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "IsExpr")
+        printer.printObject("expr", expr)
+        printer.printObject("typeNode", typeNode)
+    }
+
+    public mut prop expr: Expr {
+        get() {
+            expr_
+        }
+        set(v) {
+            expr_ = v
+        }
+    }
+
+    public mut prop typeNode: TypeNode {
+        get() {
+            typeNode_
+        }
+        set(v) {
+            typeNode_ = v
+        }
+    }
+}
+
+public class AsExpr <: Expr {
+    private var expr_: Expr
+    private var typeNode_: TypeNode
+
+    public init() {
+        this(NodeId(), Expr(), TypeNode())
+    }
+
+    public AsExpr(id: NodeId, expr: Expr, typeNode: TypeNode) {
+        super(id)
+        expr_ = expr
+        typeNode_ = typeNode
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        expr.prettyPrint(printer)
+        printer.append(" as ")
+        typeNode.prettyPrint(printer)
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "AsExpr")
+        printer.printObject("expr", expr)
+        printer.printObject("typeNode", typeNode)
+    }
+
+    public mut prop expr: Expr {
+        get() {
+            expr_
+        }
+        set(v) {
+            expr_ = v
+        }
+    }
+
+    public mut prop typeNode: TypeNode {
+        get() {
+            typeNode_
+        }
+        set(v) {
+            typeNode_ = v
         }
     }
 }

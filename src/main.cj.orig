@@ -46,15 +46,6 @@ public class Cj {
             exit(65)
         }
     }
-
-    public static func checkCode(source: String): Unit {
-        if (let Some(p) <- parseProgram(source)) {
-            let executor = Executor()
-            exit(executor.typeCheck(p))
-        } else {
-            exit(65)
-        }
-    }
 }
 
 func printHelp() {
@@ -73,7 +64,6 @@ main(args: Array<String>) {
     }
     match (args[0]) {
         case "run" => Cj.runCode(getCode(args))
-        case "check" => Cj.checkCode(getCode(args))
         case "ast" => Cj.printAst(getCode(args))
         case _ => printHelp()
     }

@@ -1,0 +1,13 @@
+main(): Unit {
+    let x = Option<Int>.Some(42)
+    let y = Option<Int>.None
+
+    println(x.isSome())   // true
+    println(x.isNone())   // false
+    println(x.getOrThrow()) // 42
+
+    println(y.isSome())   // false
+    println(y.isNone())   // true
+    y.getOrThrow()        // 抛出 Option is None 异常
+
+}

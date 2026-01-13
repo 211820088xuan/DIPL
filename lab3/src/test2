@@ -1,0 +1,23 @@
+// test6.cj
+class TestThis {
+    let value: Int64 = 0
+    
+    func setValue(v: Int64): Unit {
+        this.value = v
+    }
+    
+    func getValue(): Int64 {
+        return this.value
+    }
+    
+    func chain(): TestThis {
+        this.value = this.value + 1
+        return this
+    }
+}
+
+main(): Unit {
+    let t: TestThis = TestThis()
+    t.setValue(42)
+    println(t.getValue())  // 应该
+}

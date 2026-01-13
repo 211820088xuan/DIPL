@@ -1,0 +1,651 @@
+package cjcj.scanner
+
+import std.deriving.*
+
+/* ===== Emitted by MacroCall @Derive in tokenkind.cj:5:1 ===== */
+/* 5.1 */public enum TokenKind <: ToString {
+/* 5.2 */    DOT
+/* 5.3 */    |
+/* 5.4 */    COMMA
+/* 5.5 */    |
+/* 5.6 */    LPAREN
+/* 5.7 */    |
+/* 5.8 */    RPAREN
+/* 5.9 */    |
+/* 5.10 */    LSQUARE
+/* 5.11 */    |
+/* 5.12 */    RSQUARE
+/* 5.13 */    |
+/* 5.14 */    LCURL
+/* 5.15 */    |
+/* 5.16 */    RCURL
+/* 5.17 */    |
+/* 5.18 */    EXP
+/* 5.19 */    |
+/* 5.20 */    MUL
+/* 5.21 */    |
+/* 5.22 */    MOD
+/* 5.23 */    |
+/* 5.24 */    DIV
+/* 5.25 */    |
+/* 5.26 */    ADD
+/* 5.27 */    |
+/* 5.28 */    SUB
+/* 5.29 */    |
+/* 5.30 */    INCR
+/* 5.31 */    |
+/* 5.32 */    DECR
+/* 5.33 */    |
+/* 5.34 */    AND
+/* 5.35 */    |
+/* 5.36 */    OR
+/* 5.37 */    |
+/* 5.38 */    NOT
+/* 5.39 */    |
+/* 5.40 */    BITAND
+/* 5.41 */    |
+/* 5.42 */    BITOR
+/* 5.43 */    |
+/* 5.44 */    BITXOR
+/* 5.45 */    |
+/* 5.46 */    BITNOT
+/* 5.47 */    |
+/* 5.48 */    LSHIFT
+/* 5.49 */    |
+/* 5.50 */    RSHIFT
+/* 5.51 */    |
+/* 5.52 */    COLON
+/* 5.53 */    |
+/* 5.54 */    SEMI
+/* 5.55 */    |
+/* 5.56 */    ASSIGN
+/* 5.57 */    |
+/* 5.58 */    ADD_ASSIGN
+/* 5.59 */    |
+/* 5.60 */    SUB_ASSIGN
+/* 5.61 */    |
+/* 5.62 */    MUL_ASSIGN
+/* 5.63 */    |
+/* 5.64 */    DIV_ASSIGN
+/* 5.65 */    |
+/* 5.66 */    MOD_ASSIGN
+/* 5.67 */    |
+/* 5.68 */    BACKARROW
+/* 5.69 */    |
+/* 5.70 */    DOUBLE_ARROW
+/* 5.71 */    |
+/* 5.72 */    HASH
+/* 5.73 */    |
+/* 5.74 */    QUEST
+/* 5.75 */    |
+/* 5.76 */    LT
+/* 5.77 */    |
+/* 5.78 */    GT
+/* 5.79 */    |
+/* 5.80 */    LE
+/* 5.81 */    |
+/* 5.82 */    GE
+/* 5.83 */    |
+/* 5.84 */    IS
+/* 5.85 */    |
+/* 5.86 */    AS
+/* 5.87 */    |
+/* 5.88 */    NOTEQ
+/* 5.89 */    |
+/* 5.90 */    EQUAL
+/* 5.91 */    |
+/* 5.92 */    WILDCARD
+/* 5.93 */    |
+/* 5.94 */    INT8
+/* 5.95 */    |
+/* 5.96 */    INT16
+/* 5.97 */    |
+/* 5.98 */    INT32
+/* 5.99 */    |
+/* 5.100 */    INT64
+/* 5.101 */    |
+/* 5.102 */    INTNATIVE
+/* 5.103 */    |
+/* 5.104 */    UINT8
+/* 5.105 */    |
+/* 5.106 */    UINT16
+/* 5.107 */    |
+/* 5.108 */    UINT32
+/* 5.109 */    |
+/* 5.110 */    UINT64
+/* 5.111 */    |
+/* 5.112 */    UINTNATIVE
+/* 5.113 */    |
+/* 5.114 */    FLOAT16
+/* 5.115 */    |
+/* 5.116 */    FLOAT32
+/* 5.117 */    |
+/* 5.118 */    FLOAT64
+/* 5.119 */    |
+/* 5.120 */    RUNE
+/* 5.121 */    |
+/* 5.122 */    BOOLEAN
+/* 5.123 */    |
+/* 5.124 */    NOTHING
+/* 5.125 */    |
+/* 5.126 */    UNIT
+/* 5.127 */    |
+/* 5.128 */    STRUCT
+/* 5.129 */    |
+/* 5.130 */    ENUM
+/* 5.131 */    |
+/* 5.132 */    VARRAY
+/* 5.133 */    |
+/* 5.134 */    THISTYPE
+/* 5.135 */    |
+/* 5.136 */    CLASS
+/* 5.137 */    |
+/* 5.138 */    INTERFACE
+/* 5.139 */    |
+/* 5.140 */    FUNC
+/* 5.141 */    |
+/* 5.142 */    LET
+/* 5.143 */    |
+/* 5.144 */    VAR
+/* 5.145 */    |
+/* 5.146 */    CONST
+/* 5.147 */    |
+/* 5.148 */    TYPE
+/* 5.149 */    |
+/* 5.150 */    INIT
+/* 5.151 */    |
+/* 5.152 */    THIS
+/* 5.153 */    |
+/* 5.154 */    SUPER
+/* 5.155 */    |
+/* 5.156 */    IF
+/* 5.157 */    |
+/* 5.158 */    ELSE
+/* 5.159 */    |
+/* 5.160 */    DO
+/* 5.161 */    |
+/* 5.162 */    WHILE
+/* 5.163 */    |
+/* 5.164 */    RETURN
+/* 5.165 */    |
+/* 5.166 */    CONTINUE
+/* 5.167 */    |
+/* 5.168 */    BREAK
+/* 5.169 */    |
+/* 5.170 */    MATCH
+/* 5.171 */    |
+/* 5.172 */    PROP
+/* 5.173 */    |
+/* 5.174 */    STATIC
+/* 5.175 */    |
+/* 5.176 */    PUBLIC
+/* 5.177 */    |
+/* 5.178 */    PRIVATE
+/* 5.179 */    |
+/* 5.180 */    INTERNAL
+/* 5.181 */    |
+/* 5.182 */    PROTECTED
+/* 5.183 */    |
+/* 5.184 */    OVERRIDE
+/* 5.185 */    |
+/* 5.186 */    ABSTRACT
+/* 5.187 */    |
+/* 5.188 */    SEALED
+/* 5.189 */    |
+/* 5.190 */    OPEN
+/* 5.191 */    |
+/* 5.192 */    INOUT
+/* 5.193 */    |
+/* 5.194 */    MUT
+/* 5.195 */    |
+/* 5.196 */    OPERATOR
+/* 5.197 */    |
+/* 5.198 */    UPPERBOUND
+/* 5.199 */    |
+/* 5.200 */    MAIN
+/* 5.201 */    |
+/* 5.202 */    IDENTIFIER
+/* 5.203 */    |
+/* 5.204 */    INTEGER_LITERAL
+/* 5.205 */    |
+/* 5.206 */    RUNE_BYTE_LITERAL
+/* 5.207 */    |
+/* 5.208 */    FLOAT_LITERAL
+/* 5.209 */    |
+/* 5.210 */    COMMENT
+/* 5.211 */    |
+/* 5.212 */    NL
+/* 5.213 */    |
+/* 5.214 */    END
+/* 5.215 */    |
+/* 5.216 */    RUNE_LITERAL
+/* 5.217 */    |
+/* 5.218 */    STRING_LITERAL
+/* 5.219 */    |
+/* 5.220 */    
+/* 5.221 */    
+/* 5.222 */    
+/* 5.223 */    
+/* 5.224 */    
+/* 5.225 */    
+/* 5.226 */    
+/* 5.227 */    
+/* 5.228 */    BOOL_LITERAL
+/* 5.229 */    |
+/* 5.230 */    UNIT_LITERAL
+/* 5.231 */    |
+/* 5.232 */    ARROW
+/* 5.233 */    |
+/* 5.234 */    ILLEGAL
+/* 5.235 */    |
+/* 5.236 */    OPTION
+/* 5.237 */    
+/* 5.238 */    
+/* 5.239 */    
+/* 5.240 */    public func toString(): String {
+/* 5.241 */        return match(this) {
+/* 5.242 */            case DOT => "."
+/* 5.243 */            case COMMA => ","
+/* 5.244 */            case LPAREN => "("
+/* 5.245 */            case RPAREN => ")"
+/* 5.246 */            case LSQUARE => "["
+/* 5.247 */            case RSQUARE => "]"
+/* 5.248 */            case LCURL => "{"
+/* 5.249 */            case RCURL => "}"
+/* 5.250 */            case EXP => "**"
+/* 5.251 */            case MUL => "*"
+/* 5.252 */            case MOD => "%"
+/* 5.253 */            case DIV => "/"
+/* 5.254 */            case ADD => "+"
+/* 5.255 */            case SUB => "-"
+/* 5.256 */            case INCR => "++"
+/* 5.257 */            case DECR => "--"
+/* 5.258 */            case AND => "&&"
+/* 5.259 */            case OR => "||"
+/* 5.260 */            case NOT => "!"
+/* 5.261 */            case BITAND => "&"
+/* 5.262 */            case BITOR => "|"
+/* 5.263 */            case BITXOR => "^"
+/* 5.264 */            case BITNOT => "~"
+/* 5.265 */            case LSHIFT => "<<"
+/* 5.266 */            case RSHIFT => ">>"
+/* 5.267 */            case COLON => ":"
+/* 5.268 */            case SEMI => ";"
+/* 5.269 */            case ASSIGN => "="
+/* 5.270 */            case ADD_ASSIGN => "+="
+/* 5.271 */            case SUB_ASSIGN => "-="
+/* 5.272 */            case MUL_ASSIGN => "*="
+/* 5.273 */            case DIV_ASSIGN => "/="
+/* 5.274 */            case MOD_ASSIGN => "%="
+/* 5.275 */            case BACKARROW => "<-"
+/* 5.276 */            case DOUBLE_ARROW => "=>"
+/* 5.277 */            case HASH => "#"
+/* 5.278 */            case QUEST => "?"
+/* 5.279 */            case LT => "<"
+/* 5.280 */            case GT => ">"
+/* 5.281 */            case LE => "<="
+/* 5.282 */            case GE => ">="
+/* 5.283 */            case IS => "is"
+/* 5.284 */            case AS => "as"
+/* 5.285 */            case NOTEQ => "!="
+/* 5.286 */            case EQUAL => "=="
+/* 5.287 */            case WILDCARD => "_"
+/* 5.288 */            case INT8 => "Int8"
+/* 5.289 */            case INT16 => "Int16"
+/* 5.290 */            case INT32 => "Int32"
+/* 5.291 */            case INT64 => "Int64"
+/* 5.292 */            case INTNATIVE => "IntNative"
+/* 5.293 */            case UINT8 => "UInt8"
+/* 5.294 */            case UINT16 => "UInt16"
+/* 5.295 */            case UINT32 => "UInt32"
+/* 5.296 */            case UINT64 => "UInt64"
+/* 5.297 */            case UINTNATIVE => "UIntNative"
+/* 5.298 */            case FLOAT16 => "Float16"
+/* 5.299 */            case FLOAT32 => "Float32"
+/* 5.300 */            case FLOAT64 => "Float64"
+/* 5.301 */            case RUNE => "Rune"
+/* 5.302 */            case BOOLEAN => "Bool"
+/* 5.303 */            case NOTHING => "Nothing"
+/* 5.304 */            case UNIT => "Unit"
+/* 5.305 */            case STRUCT => "struct"
+/* 5.306 */            case ENUM => "enum"
+/* 5.307 */            case VARRAY => "VArray"
+/* 5.308 */            case THISTYPE => "This"
+/* 5.309 */            case CLASS => "class"
+/* 5.310 */            case INTERFACE => "interface"
+/* 5.311 */            case FUNC => "func"
+/* 5.312 */            case LET => "let"
+/* 5.313 */            case VAR => "var"
+/* 5.314 */            case CONST => "const"
+/* 5.315 */            case TYPE => "type"
+/* 5.316 */            case INIT => "init"
+/* 5.317 */            case THIS => "this"
+/* 5.318 */            case SUPER => "super"
+/* 5.319 */            case IF => "if"
+/* 5.320 */            case ELSE => "else"
+/* 5.321 */            case DO => "do"
+/* 5.322 */            case WHILE => "while"
+/* 5.323 */            case RETURN => "return"
+/* 5.324 */            case CONTINUE => "continue"
+/* 5.325 */            case BREAK => "break"
+/* 5.326 */            case MATCH => "match"
+/* 5.327 */            case PROP => "prop"
+/* 5.328 */            case STATIC => "static"
+/* 5.329 */            case PUBLIC => "public"
+/* 5.330 */            case PRIVATE => "private"
+/* 5.331 */            case INTERNAL => "internal"
+/* 5.332 */            case PROTECTED => "protected"
+/* 5.333 */            case OVERRIDE => "override"
+/* 5.334 */            case ABSTRACT => "abstract"
+/* 5.335 */            case SEALED => "sealed"
+/* 5.336 */            case OPEN => "open"
+/* 5.337 */            case INOUT => "inout"
+/* 5.338 */            case MUT => "mut"
+/* 5.339 */            case OPERATOR => "operator"
+/* 5.340 */            case UPPERBOUND => "<:"
+/* 5.341 */            case MAIN => "main"
+/* 5.342 */            case IDENTIFIER => "identifier"
+/* 5.343 */            case INTEGER_LITERAL => "integer literal"
+/* 5.344 */            case RUNE_BYTE_LITERAL => "rune byte literal"
+/* 5.345 */            case FLOAT_LITERAL => "float literal"
+/* 5.346 */            case COMMENT => "comment"
+/* 5.347 */            case NL => "newline"
+/* 5.348 */            case END => "end of file"
+/* 5.349 */            case RUNE_LITERAL => "rune literal"
+/* 5.350 */            case STRING_LITERAL => "string literal"
+/* 5.351 */            case BOOL_LITERAL => "boolean literal"
+/* 5.352 */            case UNIT_LITERAL => "unit literal"
+/* 5.353 */            case ARROW => "->"
+/* 5.354 */            case ILLEGAL => "illegal"
+/* 5.355 */            case OPTION => "Option"
+/* 5.356 */        }
+/* 5.357 */    }
+/* 5.358 */}
+/* 5.359 */extend TokenKind <: Equatable < TokenKind > {
+/* 5.360 */    public operator func ==(other: TokenKind): Bool {
+/* 5.361 */        return match((this, other)) {
+/* 5.362 */            case(DOT, DOT) => true
+/* 5.363 */            case(COMMA, COMMA) => true
+/* 5.364 */            case(LPAREN, LPAREN) => true
+/* 5.365 */            case(RPAREN, RPAREN) => true
+/* 5.366 */            case(LSQUARE, LSQUARE) => true
+/* 5.367 */            case(RSQUARE, RSQUARE) => true
+/* 5.368 */            case(LCURL, LCURL) => true
+/* 5.369 */            case(RCURL, RCURL) => true
+/* 5.370 */            case(EXP, EXP) => true
+/* 5.371 */            case(MUL, MUL) => true
+/* 5.372 */            case(MOD, MOD) => true
+/* 5.373 */            case(DIV, DIV) => true
+/* 5.374 */            case(ADD, ADD) => true
+/* 5.375 */            case(SUB, SUB) => true
+/* 5.376 */            case(INCR, INCR) => true
+/* 5.377 */            case(DECR, DECR) => true
+/* 5.378 */            case(AND, AND) => true
+/* 5.379 */            case(OR, OR) => true
+/* 5.380 */            case(NOT, NOT) => true
+/* 5.381 */            case(BITAND, BITAND) => true
+/* 5.382 */            case(BITOR, BITOR) => true
+/* 5.383 */            case(BITXOR, BITXOR) => true
+/* 5.384 */            case(BITNOT, BITNOT) => true
+/* 5.385 */            case(LSHIFT, LSHIFT) => true
+/* 5.386 */            case(RSHIFT, RSHIFT) => true
+/* 5.387 */            case(COLON, COLON) => true
+/* 5.388 */            case(SEMI, SEMI) => true
+/* 5.389 */            case(ASSIGN, ASSIGN) => true
+/* 5.390 */            case(ADD_ASSIGN, ADD_ASSIGN) => true
+/* 5.391 */            case(SUB_ASSIGN, SUB_ASSIGN) => true
+/* 5.392 */            case(MUL_ASSIGN, MUL_ASSIGN) => true
+/* 5.393 */            case(DIV_ASSIGN, DIV_ASSIGN) => true
+/* 5.394 */            case(MOD_ASSIGN, MOD_ASSIGN) => true
+/* 5.395 */            case(BACKARROW, BACKARROW) => true
+/* 5.396 */            case(DOUBLE_ARROW, DOUBLE_ARROW) => true
+/* 5.397 */            case(HASH, HASH) => true
+/* 5.398 */            case(QUEST, QUEST) => true
+/* 5.399 */            case(LT, LT) => true
+/* 5.400 */            case(GT, GT) => true
+/* 5.401 */            case(LE, LE) => true
+/* 5.402 */            case(GE, GE) => true
+/* 5.403 */            case(IS, IS) => true
+/* 5.404 */            case(AS, AS) => true
+/* 5.405 */            case(NOTEQ, NOTEQ) => true
+/* 5.406 */            case(EQUAL, EQUAL) => true
+/* 5.407 */            case(WILDCARD, WILDCARD) => true
+/* 5.408 */            case(INT8, INT8) => true
+/* 5.409 */            case(INT16, INT16) => true
+/* 5.410 */            case(INT32, INT32) => true
+/* 5.411 */            case(INT64, INT64) => true
+/* 5.412 */            case(INTNATIVE, INTNATIVE) => true
+/* 5.413 */            case(UINT8, UINT8) => true
+/* 5.414 */            case(UINT16, UINT16) => true
+/* 5.415 */            case(UINT32, UINT32) => true
+/* 5.416 */            case(UINT64, UINT64) => true
+/* 5.417 */            case(UINTNATIVE, UINTNATIVE) => true
+/* 5.418 */            case(FLOAT16, FLOAT16) => true
+/* 5.419 */            case(FLOAT32, FLOAT32) => true
+/* 5.420 */            case(FLOAT64, FLOAT64) => true
+/* 5.421 */            case(RUNE, RUNE) => true
+/* 5.422 */            case(BOOLEAN, BOOLEAN) => true
+/* 5.423 */            case(NOTHING, NOTHING) => true
+/* 5.424 */            case(UNIT, UNIT) => true
+/* 5.425 */            case(STRUCT, STRUCT) => true
+/* 5.426 */            case(ENUM, ENUM) => true
+/* 5.427 */            case(VARRAY, VARRAY) => true
+/* 5.428 */            case(THISTYPE, THISTYPE) => true
+/* 5.429 */            case(CLASS, CLASS) => true
+/* 5.430 */            case(INTERFACE, INTERFACE) => true
+/* 5.431 */            case(FUNC, FUNC) => true
+/* 5.432 */            case(LET, LET) => true
+/* 5.433 */            case(VAR, VAR) => true
+/* 5.434 */            case(CONST, CONST) => true
+/* 5.435 */            case(TYPE, TYPE) => true
+/* 5.436 */            case(INIT, INIT) => true
+/* 5.437 */            case(THIS, THIS) => true
+/* 5.438 */            case(SUPER, SUPER) => true
+/* 5.439 */            case(IF, IF) => true
+/* 5.440 */            case(ELSE, ELSE) => true
+/* 5.441 */            case(DO, DO) => true
+/* 5.442 */            case(WHILE, WHILE) => true
+/* 5.443 */            case(RETURN, RETURN) => true
+/* 5.444 */            case(CONTINUE, CONTINUE) => true
+/* 5.445 */            case(BREAK, BREAK) => true
+/* 5.446 */            case(MATCH, MATCH) => true
+/* 5.447 */            case(PROP, PROP) => true
+/* 5.448 */            case(STATIC, STATIC) => true
+/* 5.449 */            case(PUBLIC, PUBLIC) => true
+/* 5.450 */            case(PRIVATE, PRIVATE) => true
+/* 5.451 */            case(INTERNAL, INTERNAL) => true
+/* 5.452 */            case(PROTECTED, PROTECTED) => true
+/* 5.453 */            case(OVERRIDE, OVERRIDE) => true
+/* 5.454 */            case(ABSTRACT, ABSTRACT) => true
+/* 5.455 */            case(SEALED, SEALED) => true
+/* 5.456 */            case(OPEN, OPEN) => true
+/* 5.457 */            case(INOUT, INOUT) => true
+/* 5.458 */            case(MUT, MUT) => true
+/* 5.459 */            case(OPERATOR, OPERATOR) => true
+/* 5.460 */            case(UPPERBOUND, UPPERBOUND) => true
+/* 5.461 */            case(MAIN, MAIN) => true
+/* 5.462 */            case(IDENTIFIER, IDENTIFIER) => true
+/* 5.463 */            case(INTEGER_LITERAL, INTEGER_LITERAL) => true
+/* 5.464 */            case(RUNE_BYTE_LITERAL, RUNE_BYTE_LITERAL) => true
+/* 5.465 */            case(FLOAT_LITERAL, FLOAT_LITERAL) => true
+/* 5.466 */            case(COMMENT, COMMENT) => true
+/* 5.467 */            case(NL, NL) => true
+/* 5.468 */            case(END, END) => true
+/* 5.469 */            case(RUNE_LITERAL, RUNE_LITERAL) => true
+/* 5.470 */            case(STRING_LITERAL, STRING_LITERAL) => true
+/* 5.471 */            case(BOOL_LITERAL, BOOL_LITERAL) => true
+/* 5.472 */            case(UNIT_LITERAL, UNIT_LITERAL) => true
+/* 5.473 */            case(ARROW, ARROW) => true
+/* 5.474 */            case(ILLEGAL, ILLEGAL) => true
+/* 5.475 */            case(OPTION, OPTION) => true
+/* 5.476 */            case _ => false
+/* 5.477 */        }
+/* 5.478 */    }
+/* 5.479 */    public operator func !=(other: TokenKind): Bool {
+/* 5.480 */        !(this == other)
+/* 5.481 */    }
+/* 5.482 */}
+/* 5.483 */
+/* ===== End of the Emit ===== */
+
+public class TokenKindHelper {
+    public static let PRIMITIVE_TYPE_TOKEN_KIND: Array<TokenKind> = [
+        INT8,
+        INT16,
+        INT32,
+        INT64,
+        INTNATIVE,
+        UINT8,
+        UINT16,
+        UINT32,
+        UINT64,
+        UINTNATIVE,
+        FLOAT16,
+        FLOAT32,
+        FLOAT64,
+        RUNE,
+        BOOLEAN,
+        NOTHING,
+        UNIT,
+        // THISTYPE,ADDED FOR TYPE CHECKING PURPOSES
+        STRING_LITERAL
+    ]
+
+    public static let MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PROP,
+        STATIC,
+        PUBLIC,
+        PRIVATE,
+        INTERNAL,
+        PROTECTED,
+        OVERRIDE,
+        ABSTRACT,
+        SEALED,
+        OPEN,
+        INOUT,
+        MUT,
+        CONST
+    ]
+
+    public static let CLASS_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        INTERNAL,
+        PROTECTED,
+        ABSTRACT,
+        OPEN
+    ]
+
+    public static let FUNCTION_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL,
+        STATIC,
+        OPEN,
+        MUT,
+        CONST
+    ]
+
+    public static let VAR_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL,
+        STATIC
+    ]
+
+    public static let STRUCT_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL
+    ]
+
+    public static let ASSIGNMENT_OPERATOR: Array<TokenKind> = [TokenKind.ASSIGN]
+
+    public static let COMPARISON_OPERATOR: Array<TokenKind> = [
+        TokenKind.LT,
+        TokenKind.GT,
+        TokenKind.LE,
+        TokenKind.GE
+    ]
+
+    public static let EQUALITY_OPERATOR: Array<TokenKind> = [
+        TokenKind.NOTEQ,
+        TokenKind.EQUAL
+    ]
+
+    public static let ADDITIVE_OPERATOR: Array<TokenKind> = [
+        TokenKind.ADD,
+        TokenKind.SUB
+    ]
+
+    public static let EXPONENT_OPERATOR: Array<TokenKind> = [TokenKind.EXP]
+
+    public static let MULTIPLICATIVE_OPERATOR: Array<TokenKind> = [
+        TokenKind.MOD,
+        TokenKind.DIV,
+        TokenKind.MUL
+    ]
+
+    public static let PREFIX_UNARY_OPERATOR: Array<TokenKind> = [
+        TokenKind.SUB,
+        TokenKind.NOT
+    ]
+
+    public static let THIS_SUPER: Array<TokenKind> = [
+        TokenKind.THIS,
+        TokenKind.SUPER
+    ]
+
+    public static let NUMERIC_TYPES: Array<TokenKind> = [
+        TokenKind.INT8,
+        TokenKind.INT16,
+        TokenKind.INT32,
+        TokenKind.INT64,
+        TokenKind.INTNATIVE,
+        TokenKind.UINT8,
+        TokenKind.UINT16,
+        TokenKind.UINT32,
+        TokenKind.UINT64,
+        TokenKind.UINTNATIVE,
+        TokenKind.FLOAT16,
+        TokenKind.FLOAT32,
+        TokenKind.FLOAT64
+    ]
+
+    public static let CHAR_LANG_TYPES: Array<TokenKind> = NUMERIC_TYPES.concat(
+        [
+            TokenKind.RUNE,
+            TokenKind.BOOLEAN,
+            TokenKind.NOTHING,
+            TokenKind.UNIT,
+            TokenKind.THISTYPE
+        ]
+    )
+
+    public static let LITERAL_CONSTANT: Array<TokenKind> = [
+        TokenKind.BOOL_LITERAL,
+        TokenKind.RUNE_BYTE_LITERAL,
+        TokenKind.INTEGER_LITERAL,
+        TokenKind.STRING_LITERAL,
+        TokenKind.FLOAT_LITERAL,
+        TokenKind.RUNE_LITERAL,
+        TokenKind.UNIT_LITERAL
+    ]
+
+    public static let END: Array<TokenKind> = [
+        TokenKind.NL,
+        TokenKind.SEMI
+    ]
+
+    public static let TOP: Array<TokenKind> = [
+        TokenKind.MAIN,
+        TokenKind.FUNC,
+        TokenKind.LET,
+        TokenKind.VAR,
+        TokenKind.CLASS,
+        TokenKind.INTERFACE
+    ]
+}

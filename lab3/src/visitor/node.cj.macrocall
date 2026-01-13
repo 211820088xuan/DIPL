@@ -1,0 +1,206 @@
+package cjcj.visitor
+
+import cjcj.prettyPrinter.{PrettyPrinter, YamlPrintable, YamlPrinter}
+import std.collection.ArrayList
+import std.deriving.Derive
+
+/* ===== Emitted by MacroCall @Derive in node.cj:7:1 ===== */
+/* 7.1 */public struct NodeId <: Hashable {
+/* 7.2 */    public let id: Int64
+/* 7.3 */    
+/* 7.4 */    
+/* 7.5 */    public init() {
+/* 7.6 */        this(0)
+/* 7.7 */    }
+/* 7.8 */    
+/* 7.9 */    public NodeId(id: Int64) {
+/* 7.10 */        this.id = id
+/* 7.11 */    }
+/* 7.12 */    
+/* 7.13 */    public func hashCode(): Int64 {
+/* 7.14 */        return id
+/* 7.15 */    }
+/* 7.16 */}
+/* 7.17 */extend NodeId <: Equatable < NodeId > {
+/* 7.18 */    public operator func ==(other: NodeId): Bool {
+/* 7.19 */        return this.id == other.id
+/* 7.20 */    }
+/* 7.21 */    public operator func !=(other: NodeId): Bool {
+/* 7.22 */        !(this == other)
+/* 7.23 */    }
+/* 7.24 */}
+/* 7.25 */extend NodeId {
+/* 7.26 */    private func derivingChecks_(): Unit {
+/* 7.27 */        let _: Equatable < Int64 >= id
+/* 7.28 */        derivingChecks2_()
+/* 7.29 */    }
+/* 7.30 */    private func derivingChecks2_(): Unit {
+/* 7.31 */        derivingChecks_()
+/* 7.32 */    }
+/* 7.33 */}
+/* 7.34 */
+/* ===== End of the Emit ===== */
+
+public abstract class Node <: Hashable & Equatable<Node> & YamlPrintable {
+    private var id_: NodeId
+
+    public Node(id: NodeId) {
+        id_ = id
+    }
+
+    public func traverse<R>(v: Visitor<R>): R
+
+    /*
+     * Print the node and its children as a piece of Cangjie code.
+     */
+    public func prettyPrint(printer: PrettyPrinter): Unit
+
+    public func yamlPrint(printer: YamlPrinter): Unit
+
+    public func prettyPrint(): String {
+        let printer: PrettyPrinter = PrettyPrinter()
+        prettyPrint(printer)
+        return printer.toString()
+    }
+
+    public func yamlPrint(): String {
+        let printer: YamlPrinter = YamlPrinter()
+        yamlPrint(printer)
+        return printer.toString()
+    }
+
+    public mut prop id: NodeId {
+        get() {
+            id_
+        }
+        set(v) {
+            id_ = v
+        }
+    }
+
+    public func hashCode(): Int64 {
+        id.hashCode()
+    }
+
+    public operator override func ==(other: Node): Bool {
+        id == other.id
+    }
+
+    public operator override func !=(other: Node): Bool {
+        !(this == other)
+    }
+}
+
+public class Argument <: Node {
+    private var expr_: Node
+
+    public Argument(id: NodeId, expr: Node) {
+        super(id)
+        expr_ = expr
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        expr.prettyPrint(printer)
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "Argument")
+        printer.printObject("expr", expr)
+    }
+
+    public mut prop expr: Node {
+        get() {
+            expr_
+        }
+        set(v) {
+            expr_ = v
+        }
+    }
+}
+
+public class Program <: Node {
+    private var decls_: ArrayList<Decl>
+
+    public Program(id: NodeId, decls: ArrayList<Decl>) {
+        super(id)
+        decls_ = decls
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        decls.iterator().forEach(
+            {
+                d =>
+                    d.prettyPrint(printer)
+                    printer.append("\n")
+            }
+        )
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "Program")
+        printer.printList("decls", decls)
+    }
+
+    public mut prop decls: ArrayList<Decl> {
+        get() {
+            decls_
+        }
+        set(v) {
+            decls_ = v
+        }
+    }
+}
+
+public class Body <: Node {
+    private var decls_: ArrayList<Decl>
+
+    public init() {
+        this(NodeId(), ArrayList())
+    }
+
+    public init(id: NodeId, decls: ArrayList<Decl>) {
+        super(id)
+        decls_ = decls
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append("{")
+        printer.indent()
+        printer.append("\n")
+        decls.iterator().forEach(
+            {
+                d =>
+                    d.prettyPrint(printer)
+                    printer.append("\n")
+            }
+        )
+        printer.unindent()
+        printer.append("\n}")
+    }
+
+    public override func yamlPrint(printer: YamlPrinter): Unit {
+        printer.print("type", "Body")
+        printer.printList("decls", decls)
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop decls: ArrayList<Decl> {
+        get() {
+            decls_
+        }
+        set(v) {
+            decls_ = v
+        }
+    }
+}

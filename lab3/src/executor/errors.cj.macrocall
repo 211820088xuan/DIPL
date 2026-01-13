@@ -1,0 +1,206 @@
+package cjcj.executor
+
+import cjcj.visitor.*
+import std.deriving.Derive
+
+/* ===== Emitted by MacroCall @Derive in errors.cj:6:1 ===== */
+/* 6.1 */public enum ErrorCode {
+/* 6.2 */    | ADD_TYPE_MISMATCH
+/* 6.3 */    | ADD_OVERFLOW
+/* 6.4 */    | SUB_TYPE_MISMATCH
+/* 6.5 */    | SUB_OVERFLOW
+/* 6.6 */    | MUL_TYPE_MISMATCH
+/* 6.7 */    | MUL_OVERFLOW
+/* 6.8 */    | DIV_TYPE_MISMATCH
+/* 6.9 */    | DIV_BY_ZERO
+/* 6.10 */    | MOD_TYPE_MISMATCH
+/* 6.11 */    | MOD_BY_ZERO
+/* 6.12 */    | EXP_NEGATIVE_POWER
+/* 6.13 */    | EXP_OVERFLOW
+/* 6.14 */    | EXP_TYPE_MISMATCH
+/* 6.15 */    | CMP_TYPE_MISMATCH
+/* 6.16 */    | EQ_TYPE_MISMATCH
+/* 6.17 */    | NEQ_TYPE_MISMATCH
+/* 6.18 */    | AND_TYPE_MISMATCH
+/* 6.19 */    | OR_TYPE_MISMATCH
+/* 6.20 */    | NOT_TYPE_MISMATCH
+/* 6.21 */    | NEG_TYPE_MISMATCH
+/* 6.22 */    | NEG_OVERFLOW
+/* 6.23 */    | IF_TYPE_MISMATCH
+/* 6.24 */    | WHILE_TYPE_MISMATCH
+/* 6.25 */    | BREAK_OUTSIDE_LOOP
+/* 6.26 */    | CONTINUE_OUTSIDE_LOOP
+/* 6.27 */    | ASSIGN_IMMUT_VAR
+/* 6.28 */    | ASSIGN_TYPE_MISMATCH
+/* 6.29 */    | UNDEFINED_VAR
+/* 6.30 */    | DUPLICATED_DEF
+/* 6.31 */    | DEF_TYPE_MISMATCH
+/* 6.32 */    | UNINITIALIZED_VAR
+/* 6.33 */    | GLOBAL_NO_INITIALIZER
+/* 6.34 */    | FUNC_MISSING_RETURN_TYPE
+/* 6.35 */    | FUNC_MISSING_BODY
+/* 6.36 */    | CALLEE_NOT_FUNCTION
+/* 6.37 */    | CALL_ARG_COUNT_MISMATCH
+/* 6.38 */    | CALL_ARG_TYPE_MISMATCH
+/* 6.39 */    | FUNC_USE_MUTABLE_NONLOCAL
+/* 6.40 */    | FUNC_RETURN_TYPE_MISMATCH
+/* 6.41 */    
+/* 6.42 */    | ASSIGN_IMMUT_DECL
+/* 6.43 */    | THIS_SUPER_OUTSIDE_CLASS
+/* 6.44 */    | CLASS_MISSING_MEMBER
+/* 6.45 */    | UNDEFINED_MEMBER
+/* 6.46 */    | UNINITIALIZED_MEMBER
+/* 6.47 */    | MEMBER_NOT_INITIALIZED_AFTER_INIT
+/* 6.48 */    | UNDEFINED_CLASS
+/* 6.49 */    | OPTION_IS_NONE
+/* 6.50 */    | OPTION_IS_SOME
+/* 6.51 */    | MEMBER_ACCESS_NON_OBJECT
+/* 6.52 */    | MEMBER_ASSIGN_NON_OBJECT
+/* 6.53 */    | OPTION_METHOD_ON_NON_OPTION
+/* 6.54 */    | OPTION_UNWRAP_NONE
+/* 6.55 */    | OPTION_GETORTHROW_ERRMSG_NOT_STRING
+/* 6.56 */    | CONSTRUCTOR_RETURN_TYPE
+/* 6.57 */    | FIELD_INIT_TYPE_MISMATCH
+/* 6.58 */    | UNSUPPORTED_DECL_IN_CLASS
+/* 6.59 */    | NOT_A_FUNCTION
+/* 6.60 */    | INVALID_THIS
+/* 6.61 */}
+/* 6.62 */extend ErrorCode <: ToString {
+/* 6.63 */    public func toString(): String {
+/* 6.64 */        let sb = StringBuilder()
+/* 6.65 */        sb.append("ErrorCode")
+/* 6.66 */        match(this) {
+/* 6.67 */            case ADD_TYPE_MISMATCH => sb.append(".ADD_TYPE_MISMATCH")
+/* 6.68 */            ()
+/* 6.69 */            case ADD_OVERFLOW => sb.append(".ADD_OVERFLOW")
+/* 6.70 */            ()
+/* 6.71 */            case SUB_TYPE_MISMATCH => sb.append(".SUB_TYPE_MISMATCH")
+/* 6.72 */            ()
+/* 6.73 */            case SUB_OVERFLOW => sb.append(".SUB_OVERFLOW")
+/* 6.74 */            ()
+/* 6.75 */            case MUL_TYPE_MISMATCH => sb.append(".MUL_TYPE_MISMATCH")
+/* 6.76 */            ()
+/* 6.77 */            case MUL_OVERFLOW => sb.append(".MUL_OVERFLOW")
+/* 6.78 */            ()
+/* 6.79 */            case DIV_TYPE_MISMATCH => sb.append(".DIV_TYPE_MISMATCH")
+/* 6.80 */            ()
+/* 6.81 */            case DIV_BY_ZERO => sb.append(".DIV_BY_ZERO")
+/* 6.82 */            ()
+/* 6.83 */            case MOD_TYPE_MISMATCH => sb.append(".MOD_TYPE_MISMATCH")
+/* 6.84 */            ()
+/* 6.85 */            case MOD_BY_ZERO => sb.append(".MOD_BY_ZERO")
+/* 6.86 */            ()
+/* 6.87 */            case EXP_NEGATIVE_POWER => sb.append(".EXP_NEGATIVE_POWER")
+/* 6.88 */            ()
+/* 6.89 */            case EXP_OVERFLOW => sb.append(".EXP_OVERFLOW")
+/* 6.90 */            ()
+/* 6.91 */            case EXP_TYPE_MISMATCH => sb.append(".EXP_TYPE_MISMATCH")
+/* 6.92 */            ()
+/* 6.93 */            case CMP_TYPE_MISMATCH => sb.append(".CMP_TYPE_MISMATCH")
+/* 6.94 */            ()
+/* 6.95 */            case EQ_TYPE_MISMATCH => sb.append(".EQ_TYPE_MISMATCH")
+/* 6.96 */            ()
+/* 6.97 */            case NEQ_TYPE_MISMATCH => sb.append(".NEQ_TYPE_MISMATCH")
+/* 6.98 */            ()
+/* 6.99 */            case AND_TYPE_MISMATCH => sb.append(".AND_TYPE_MISMATCH")
+/* 6.100 */            ()
+/* 6.101 */            case OR_TYPE_MISMATCH => sb.append(".OR_TYPE_MISMATCH")
+/* 6.102 */            ()
+/* 6.103 */            case NOT_TYPE_MISMATCH => sb.append(".NOT_TYPE_MISMATCH")
+/* 6.104 */            ()
+/* 6.105 */            case NEG_TYPE_MISMATCH => sb.append(".NEG_TYPE_MISMATCH")
+/* 6.106 */            ()
+/* 6.107 */            case NEG_OVERFLOW => sb.append(".NEG_OVERFLOW")
+/* 6.108 */            ()
+/* 6.109 */            case IF_TYPE_MISMATCH => sb.append(".IF_TYPE_MISMATCH")
+/* 6.110 */            ()
+/* 6.111 */            case WHILE_TYPE_MISMATCH => sb.append(".WHILE_TYPE_MISMATCH")
+/* 6.112 */            ()
+/* 6.113 */            case BREAK_OUTSIDE_LOOP => sb.append(".BREAK_OUTSIDE_LOOP")
+/* 6.114 */            ()
+/* 6.115 */            case CONTINUE_OUTSIDE_LOOP => sb.append(".CONTINUE_OUTSIDE_LOOP")
+/* 6.116 */            ()
+/* 6.117 */            case ASSIGN_IMMUT_VAR => sb.append(".ASSIGN_IMMUT_VAR")
+/* 6.118 */            ()
+/* 6.119 */            case ASSIGN_TYPE_MISMATCH => sb.append(".ASSIGN_TYPE_MISMATCH")
+/* 6.120 */            ()
+/* 6.121 */            case UNDEFINED_VAR => sb.append(".UNDEFINED_VAR")
+/* 6.122 */            ()
+/* 6.123 */            case DUPLICATED_DEF => sb.append(".DUPLICATED_DEF")
+/* 6.124 */            ()
+/* 6.125 */            case DEF_TYPE_MISMATCH => sb.append(".DEF_TYPE_MISMATCH")
+/* 6.126 */            ()
+/* 6.127 */            case UNINITIALIZED_VAR => sb.append(".UNINITIALIZED_VAR")
+/* 6.128 */            ()
+/* 6.129 */            case GLOBAL_NO_INITIALIZER => sb.append(".GLOBAL_NO_INITIALIZER")
+/* 6.130 */            ()
+/* 6.131 */            case FUNC_MISSING_RETURN_TYPE => sb.append(".FUNC_MISSING_RETURN_TYPE")
+/* 6.132 */            ()
+/* 6.133 */            case FUNC_MISSING_BODY => sb.append(".FUNC_MISSING_BODY")
+/* 6.134 */            ()
+/* 6.135 */            case CALLEE_NOT_FUNCTION => sb.append(".CALLEE_NOT_FUNCTION")
+/* 6.136 */            ()
+/* 6.137 */            case CALL_ARG_COUNT_MISMATCH => sb.append(".CALL_ARG_COUNT_MISMATCH")
+/* 6.138 */            ()
+/* 6.139 */            case CALL_ARG_TYPE_MISMATCH => sb.append(".CALL_ARG_TYPE_MISMATCH")
+/* 6.140 */            ()
+/* 6.141 */            case FUNC_USE_MUTABLE_NONLOCAL => sb.append(".FUNC_USE_MUTABLE_NONLOCAL")
+/* 6.142 */            ()
+/* 6.143 */            case FUNC_RETURN_TYPE_MISMATCH => sb.append(".FUNC_RETURN_TYPE_MISMATCH")
+/* 6.144 */            ()
+/* 6.145 */            case ASSIGN_IMMUT_DECL => sb.append(".ASSIGN_IMMUT_DECL")
+/* 6.146 */            ()
+/* 6.147 */            case THIS_SUPER_OUTSIDE_CLASS => sb.append(".THIS_SUPER_OUTSIDE_CLASS")
+/* 6.148 */            ()
+/* 6.149 */            case CLASS_MISSING_MEMBER => sb.append(".CLASS_MISSING_MEMBER")
+/* 6.150 */            ()
+/* 6.151 */            case UNDEFINED_MEMBER => sb.append(".UNDEFINED_MEMBER")
+/* 6.152 */            ()
+/* 6.153 */            case UNINITIALIZED_MEMBER => sb.append(".UNINITIALIZED_MEMBER")
+/* 6.154 */            ()
+/* 6.155 */            case MEMBER_NOT_INITIALIZED_AFTER_INIT => sb.append(".MEMBER_NOT_INITIALIZED_AFTER_INIT")
+/* 6.156 */            ()
+/* 6.157 */            case UNDEFINED_CLASS => sb.append(".UNDEFINED_CLASS")
+/* 6.158 */            ()
+/* 6.159 */            case OPTION_IS_NONE => sb.append(".OPTION_IS_NONE")
+/* 6.160 */            ()
+/* 6.161 */            case OPTION_IS_SOME => sb.append(".OPTION_IS_SOME")
+/* 6.162 */            ()
+/* 6.163 */            case MEMBER_ACCESS_NON_OBJECT => sb.append(".MEMBER_ACCESS_NON_OBJECT")
+/* 6.164 */            ()
+/* 6.165 */            case MEMBER_ASSIGN_NON_OBJECT => sb.append(".MEMBER_ASSIGN_NON_OBJECT")
+/* 6.166 */            ()
+/* 6.167 */            case OPTION_METHOD_ON_NON_OPTION => sb.append(".OPTION_METHOD_ON_NON_OPTION")
+/* 6.168 */            ()
+/* 6.169 */            case OPTION_UNWRAP_NONE => sb.append(".OPTION_UNWRAP_NONE")
+/* 6.170 */            ()
+/* 6.171 */            case OPTION_GETORTHROW_ERRMSG_NOT_STRING => sb.append(".OPTION_GETORTHROW_ERRMSG_NOT_STRING")
+/* 6.172 */            ()
+/* 6.173 */            case CONSTRUCTOR_RETURN_TYPE => sb.append(".CONSTRUCTOR_RETURN_TYPE")
+/* 6.174 */            ()
+/* 6.175 */            case FIELD_INIT_TYPE_MISMATCH => sb.append(".FIELD_INIT_TYPE_MISMATCH")
+/* 6.176 */            ()
+/* 6.177 */            case UNSUPPORTED_DECL_IN_CLASS => sb.append(".UNSUPPORTED_DECL_IN_CLASS")
+/* 6.178 */            ()
+/* 6.179 */            case NOT_A_FUNCTION => sb.append(".NOT_A_FUNCTION")
+/* 6.180 */            ()
+/* 6.181 */            case INVALID_THIS => sb.append(".INVALID_THIS")
+/* 6.182 */            ()
+/* 6.183 */        }
+/* 6.184 */        return sb.toString()
+/* 6.185 */    }
+/* 6.186 */}
+/* 6.187 */
+/* ===== End of the Emit ===== */
+
+public class CjcjRuntimeErrorWithLocation <: Exception {
+    CjcjRuntimeErrorWithLocation(
+        public let code: ErrorCode,
+        public let extraMessage: String,
+        public let fromWhere: Node
+    ) {}
+
+    public override func toString(): String {
+        "Error at line ${getPosition(fromWhere).line}: [${code.toString()[10..]}]: ${extraMessage}" 
+    }
+}

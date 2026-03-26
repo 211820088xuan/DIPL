@@ -10,6 +10,15 @@ public class ClassInfo {
     public init(name: String) {
         this.name = name
     }
+
+    public fun addField(name: String, type: StaticType) {
+        fields[name] = type
+        fieldInitialized[name] = false
+    }
+
+    public fun addMethod(name: String, type: StaticType) {
+        methods[name] = type
+    }
 }
 
 

@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Cangjie (CJNative-unittest): cjcj.test.ParserTests.varDecl_test",
+            "program": "C:\\Users\\xuan\\Desktop\\Grade 1 master\\DIPL\\lab1\\target\\debug\\unittest_bin\\cjcj.test.exe",
+            "request": "launch",
+            "type": "cangjieDebug",
+            "externalConsole": false,
+            "env": {
+                "Path": "E:\\cangjie\\tools\\bin;${env:Path}"
+            },
+            "args": [
+                "--filter=ParserTests.varDecl_test"
+            ]
+        }
+    ]
+}

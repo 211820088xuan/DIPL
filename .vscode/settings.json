@@ -9,5 +9,13 @@
         "other": "on",
         "comments": "off",
         "strings": "on"
+<<<<<<< HEAD
+=======
+    },
+    "terminal.integrated.env.windows": {
+        "CANGJIE_HOME": "E:\\cangjie",
+        "CANGJIE_PATH": "E:\\cangjie\\runtime\\lib\\windows_x86_64_llvm;E:\\cangjie\\bin;E:\\cangjie\\tools\\bin;E:\\cangjie\\tools\\lib;E:\\cangjie\\debugger\\bin;C:\\Users\\xuan\\.cjpm\\bin",
+        "PATH": "${config:terminal.integrated.env.windows.CANGJIE_PATH};${env:PATH}"
+>>>>>>> c5b97d5889d7d850f4c67aebf9876d03ffa63498
     }
 }
